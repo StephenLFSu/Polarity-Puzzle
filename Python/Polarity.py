@@ -2,10 +2,6 @@ import sys
 from time import time
 import heapq
 sys.setrecursionlimit(100000)
-	#left = specs[0]  			#row
-	#right = specs[1]			#row
-	#top = specs[2]				#col
-	#bottom = specs[3]			#col
 def solve(board, specs):
 	board = [list(row) for row in board]
 	numRows = len(board)
@@ -81,12 +77,15 @@ def solve(board, specs):
 				rowNumX[currentRow] += 1
 				columnNumX[currentColumn] += 1
 
-	neighbourLocations = {}
+	#Dictionary key position holds what orientation magnet can fit
 	orientations = {}
+	#Dictionary organize magnets based off # of placeable orientations they have and hold the location of those magnets in a set (fast lookup)
 	magnetMRVs = {1: set(), 2: set(), 3: set()}
+	#Dictionary key position holds location of neighbours, adjacency list 
+	neighbourLocations = {}
 	for position in magnetLocations:
-		countMRV, orientations[position] = calcMRV(board, specs, position)
-		magnetMRVs[countMRV].add(position)
+		currentMRVCount, orientations[position] = calcMRV(board, specs, position)
+		magnetMRVs[currentMRVCount].add(position)
 		rowOne, columnOne, rowTwo, columnTwo = position
 		neighbours = []
 		for neighbourPosition in magnetLocations:
@@ -95,7 +94,7 @@ def solve(board, specs):
 			neighbourRowOne, neighbourColumnOne, neighbourRowTwo, neighbourColumnTwo = neighbourPosition
 			if(neighbourRowOne == rowOne or neighbourRowOne == rowTwo or neighbourRowTwo == rowOne or neighbourRowTwo == rowTwo or neighbourColumnOne == columnOne or neighbourColumnOne == columnTwo or neighbourColumnTwo == columnOne or neighbourColumnTwo == columnTwo):
 				neighbours.append(neighbourPosition)
-		neighbourLocations[position] = neighbours
+		neighbourLocations[position] = neighbours	
 	global dfsCallCount
 	dfsCallCount = 0
 	result = dfs(board, specs, numRows, numColumns)
@@ -106,26 +105,31 @@ def dfs(board, specs, numRows, numColumns):
 	global dfsCallCount
 	dfsCallCount += 1
 
+	#Exhaust the magnets with least amount of options first
 	if(len(magnetMRVs[1]) > 0):
 		position = next(iter(magnetMRVs[1]))
 		magnetMRVs[1].remove(position)
+		currentMRVCount = 1
 	elif(len(magnetMRVs[2]) > 0):
 		position = next(iter(magnetMRVs[2]))
 		magnetMRVs[2].remove(position)
+		currentMRVCount = 2
 	elif(len(magnetMRVs[3]) > 0):
 		position = next(iter(magnetMRVs[3]))
 		magnetMRVs[3].remove(position)
+		currentMRVCount = 3
 	else:
 		if(validateConfiguration(board, specs)):
 			return [row[:] for row in board]
 		return None
 
 	rowOne, columnOne, rowTwo, columnTwo = position
+	currentOrientations = orientations[position]
 
 	tileOne = board[rowOne][columnOne]
 	tileTwo = board[rowTwo][columnTwo]
 
-	for orientation in orientations[position]:
+	for orientation in currentOrientations:
 		#See if horizontal magnet can exist, columns differ rows are same
 		if(rowOne == rowTwo):
 			#Horizontal magnet in (+, -) orientation
@@ -212,15 +216,18 @@ def dfs(board, specs, numRows, numColumns):
 				rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
 				columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
 				columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
-
+		
 		neighboursUpdated = False
-		if(forwardCheck(board, specs, position)):
+		currentNeighbourMRVData = []
+		if(forwardCheck(specs, position)):
 			#Update neighbouring magnet MRV(s)
 			for neighbourPosition in neighbourLocations[position]:
 				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-					magnetMRVs[1].discard(neighbourPosition)
-					magnetMRVs[2].discard(neighbourPosition)
-					magnetMRVs[3].discard(neighbourPosition)
+					#Current MRV
+					currentNeighbourMRVCount = 1 if neighbourPosition in magnetMRVs[1] else 2 if neighbourPosition in magnetMRVs[2] else 3
+					currentNeighbourMRVData.append((neighbourPosition, currentNeighbourMRVCount, orientations[neighbourPosition]))
+					magnetMRVs[currentNeighbourMRVCount].discard(neighbourPosition)
+					#New MRV
 					neighbourMRV, newOrientations = calcMRV(board, specs, neighbourPosition)
 					orientations[neighbourPosition] = newOrientations
 					magnetMRVs[neighbourMRV].add(neighbourPosition)
@@ -318,19 +325,16 @@ def dfs(board, specs, numRows, numColumns):
 				columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
 		#Revert neighbouring magnet MRV(s)
 		if(neighboursUpdated):
-			for neighbourPosition in neighbourLocations[position]:
-				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-					magnetMRVs[1].discard(neighbourPosition)
-					magnetMRVs[2].discard(neighbourPosition)
-					magnetMRVs[3].discard(neighbourPosition)
-					neighbourMRV, newOrientations = calcMRV(board, specs, neighbourPosition)
-					orientations[neighbourPosition] = newOrientations
-					magnetMRVs[neighbourMRV].add(neighbourPosition)
+			for neighbourPosition, currentNeighbourMRVCount, currentNeighbourOrientations in currentNeighbourMRVData:
+				magnetMRVs[1].discard(neighbourPosition)
+				magnetMRVs[2].discard(neighbourPosition)
+				magnetMRVs[3].discard(neighbourPosition)
+				orientations[neighbourPosition] = currentNeighbourOrientations
+				magnetMRVs[currentNeighbourMRVCount].add(neighbourPosition)
 					
 	#No valid placement found
-	countMRV, newOrientations = calcMRV(board, specs, position)
-	orientations[position] = newOrientations
-	magnetMRVs[countMRV].add(position)
+	orientations[position] = currentOrientations
+	magnetMRVs[currentMRVCount].add(position)
 	return None
 
 #charge is either + or -
@@ -402,7 +406,7 @@ def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge
 	#Constraint can still be fulfilled in the row
 	return True 
 
-def forwardCheck(board, specs, position):
+def forwardCheck(specs, position):
 	left, right, top, bottom = specs
 	rowOne, columnOne, rowTwo, columnTwo = position
 
@@ -515,121 +519,6 @@ def forwardCheck(board, specs, position):
 		elif(top[columnTwo] == 0 and bottom[columnTwo] == 0):
 			if(columnPositives[columnTwo] > 0 or columnNegatives[columnTwo] > 0):
 				return False
-		
-	for neighbourPosition in neighbourLocations[position]:
-		#Check if nieghbour wasn't placed on yet since if it was placed on already 
-		if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-			neighbourRowOne, neighbourColumnOne, neighbourRowTwo, neighbourColumnTwo = neighbourPosition
-
-			if(left[neighbourRowOne] > 0 and right[neighbourRowOne] > 0):
-				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingHorizontalPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingHorizontalNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
-					return False
-			elif(left[neighbourRowOne] > 0 and right[neighbourRowOne] == -1):
-				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingHorizontalPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne]):
-					return False
-			elif(left[neighbourRowOne] == -1 and right[neighbourRowOne] > 0):
-				if(rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingHorizontalNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
-					return False
-			elif(left[neighbourRowOne] > 0 and right[neighbourRowOne] == 0):
-				#Horizontals can't be placed, only verticals contribute positives
-				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne]):
-					return False
-			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] > 0):
-				#Horizontals can't be placed, only verticals contribute negatives
-				if(rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
-					return False
-			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] == -1):
-				if(rowPositives[neighbourRowOne] > 0):
-					return False
-			elif(left[neighbourRowOne] == -1 and right[neighbourRowOne] == 0):
-				if(rowNegatives[neighbourRowOne] > 0):
-					return False
-			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] == 0):
-				if(rowPositives[neighbourRowOne] > 0 or rowNegatives[neighbourRowOne] > 0):
-					return False
-				
-			if(neighbourRowOne != neighbourRowTwo):
-				if(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] > 0):
-					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingHorizontalPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingHorizontalNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
-						return False
-				elif(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] == -1):
-					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingHorizontalPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo]):
-						return False
-				elif(left[neighbourRowTwo] == -1 and right[neighbourRowTwo] > 0):
-					if(rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingHorizontalNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
-						return False
-				elif(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] == 0):
-					#Horizontals can't be placed, only verticals contribute positives
-					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo]):
-						return False
-				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] > 0):
-					#Horizontals can't be placed, only verticals contribute negatives
-					if(rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
-						return False
-				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] == -1):
-					if(rowPositives[neighbourRowTwo] > 0):
-						return False
-				elif(left[neighbourRowTwo] == -1 and right[neighbourRowTwo] == 0):
-					if(rowNegatives[neighbourRowTwo] > 0):
-						return False
-				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] == 0):
-					if(rowPositives[neighbourRowTwo] > 0 or rowNegatives[neighbourRowTwo] > 0):
-						return False
-			
-			if(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] > 0):
-				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingVerticalPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingVerticalNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
-					return False
-			elif(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] == -1):
-				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingVerticalPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne]):
-					return False
-			elif(top[neighbourColumnOne] == -1 and bottom[neighbourColumnOne] > 0):
-				if(columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingVerticalNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
-					return False
-			elif(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] == 0):
-				#Verticals can't be placed, only horizontals contribute positives
-				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne]):
-					return False
-			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] > 0):
-				#Verticals can't be placed, only horizontals contribute negatives
-				if(columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
-					return False
-			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] == -1):
-				if(columnPositives[neighbourColumnOne] > 0):
-					return False
-			elif(top[neighbourColumnOne] == -1 and bottom[neighbourColumnOne] == 0):
-				if(columnNegatives[neighbourColumnOne] > 0):
-					return False
-			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] == 0):
-				if(columnPositives[neighbourColumnOne] > 0 or columnNegatives[neighbourColumnOne] > 0):
-					return False
-				
-			if(neighbourColumnOne != neighbourColumnTwo):	
-				if(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] > 0):
-					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingVerticalPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingVerticalNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
-						return False
-				elif(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] == -1):
-					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingVerticalPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo]):
-						return False
-				elif(top[neighbourColumnTwo] == -1 and bottom[neighbourColumnTwo] > 0):
-					if(columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingVerticalNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
-						return False
-				elif(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] == 0):
-					#Verticals can't be placed, only horizontals contribute positives
-					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo]):
-						return False
-				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] > 0):
-					#Verticals can't be placed, only horizontals contribute negatives
-					if(columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
-						return False
-				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] == -1):
-					if(columnPositives[neighbourColumnTwo] > 0):
-						return False
-				elif(top[neighbourColumnTwo] == -1 and bottom[neighbourColumnTwo] == 0):
-					if(columnNegatives[neighbourColumnTwo] > 0):
-						return False
-				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] == 0):
-					if(columnPositives[neighbourColumnTwo] > 0 or columnNegatives[neighbourColumnTwo] > 0):
-						return False
 		
 	return True
 
@@ -768,12 +657,13 @@ def remainingInColumn(board, currentColumn, numRows):
 
 def calcMRV(board, specs, position):
 	rowOne, columnOne, rowTwo, columnTwo = position
-	orientations = ["XX"]
+	currentOrientations = ["XX"]
 	if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
-		orientations.append("+-")
+		currentOrientations.append("+-")
 	if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
-		orientations.append("-+")
-	return (len(orientations), tuple(orientations))
+		currentOrientations.append("-+")
+		
+	return (len(currentOrientations), tuple(currentOrientations))
 
 def validateRow(board, currentRow, currentColumn, specs):
 	left, right, top, bottom = specs
