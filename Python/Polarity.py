@@ -7,431 +7,432 @@ sys.setrecursionlimit(100000)
 	#top = specs[2]				#col
 	#bottom = specs[3]			#col
 def solve(board, specs):
-    board = [list(row) for row in board]
-    numRows = len(board)
-    numColumns = len(board[0])
-    board = preZeroConstraintCheck(board, specs)
-    #Tile trackers
-    global rowPositives											#(+)
-    global rowNegatives 										#(-)
-    global columnPositives 										#(+)
-    global columnNegatives 										#(-)
-    global rowRemainingHorizontalPositives						#(L, R)
-    global rowRemainingHorizontalNegatives 						#(L, R)	
-    global rowRemainingVerticalPositives 						#(T, B)
-    global rowRemainingVerticalNegatives 						#(T, B)
-    global columnRemainingVerticalPositives						#(T, B)
-    global columnRemainingVerticalNegatives						#(T, B)
-    global columnRemainingHorizontalPositives 					#(L, R)	
-    global columnRemainingHorizontalNegatives 					#(L, R)	
-    global rowNumX												#(X, X)				
-    global columnNumX											#(X. X)
-    global neighbourLocations 
-    global magnetMRVs
-    rowPositives = [0] * numRows								#(+)
-    rowNegatives = [0] * numRows								#(-)
-    columnPositives = [0] * numColumns							#(+)
-    columnNegatives = [0] * numColumns							#(-)
-    rowRemainingHorizontalPositives = [0] * numRows				#(L, R)
-    rowRemainingHorizontalNegatives = [0] * numRows				#(L, R)	
-    rowRemainingVerticalPositives = [0] * numRows				#(T, B)
-    rowRemainingVerticalNegatives = [0] * numRows				#(T, B)
-    columnRemainingVerticalPositives = [0] * numColumns			#(T, B)
-    columnRemainingVerticalNegatives = [0] * numColumns 		#(T, B)
-    columnRemainingHorizontalPositives = [0] * numColumns 		#(L, R)	
-    columnRemainingHorizontalNegatives = [0] * numColumns		#(L, R)	
-    rowNumX = [0] * numRows										#(X, X)				
-    columnNumX = [0] * numColumns								#(X. X)	
-    magnetLocations = []
+	board = [list(row) for row in board]
+	numRows = len(board)
+	numColumns = len(board[0])
+	board = preZeroConstraintCheck(board, specs)
+	#Tile trackers
+	global rowPositives											#(+)
+	global rowNegatives 										#(-)
+	global columnPositives 										#(+)
+	global columnNegatives 										#(-)
+	global rowRemainingHorizontalPositives						#(L, R)
+	global rowRemainingHorizontalNegatives 						#(L, R)	
+	global rowRemainingVerticalPositives 						#(T, B)
+	global rowRemainingVerticalNegatives 						#(T, B)
+	global columnRemainingVerticalPositives						#(T, B)
+	global columnRemainingVerticalNegatives						#(T, B)
+	global columnRemainingHorizontalPositives 					#(L, R)	
+	global columnRemainingHorizontalNegatives 					#(L, R)	
+	global rowNumX												#(X, X)				
+	global columnNumX											#(X. X)
+	global neighbourLocations 
+	global magnetMRVs
+	rowPositives = [0] * numRows								#(+)
+	rowNegatives = [0] * numRows								#(-)
+	columnPositives = [0] * numColumns							#(+)
+	columnNegatives = [0] * numColumns							#(-)
+	rowRemainingHorizontalPositives = [0] * numRows				#(L, R)
+	rowRemainingHorizontalNegatives = [0] * numRows				#(L, R)	
+	rowRemainingVerticalPositives = [0] * numRows				#(T, B)
+	rowRemainingVerticalNegatives = [0] * numRows				#(T, B)
+	columnRemainingVerticalPositives = [0] * numColumns			#(T, B)
+	columnRemainingVerticalNegatives = [0] * numColumns 		#(T, B)
+	columnRemainingHorizontalPositives = [0] * numColumns 		#(L, R)	
+	columnRemainingHorizontalNegatives = [0] * numColumns		#(L, R)	
+	rowNumX = [0] * numRows										#(X, X)				
+	columnNumX = [0] * numColumns								#(X. X)	
+	magnetLocations = []
+	
+	for currentRow in range(numRows):
+		for currentColumn in range(numColumns):
+			currentTile = board[currentRow][currentColumn]
+			#Positive charge
+			if(currentTile == "+"):
+				rowPositives[currentRow] += 1
+				columnPositives[currentColumn] += 1
+			#Negative charge
+			elif(currentTile == "-"):
+				rowNegatives[currentRow] += 1
+				columnNegatives[currentColumn] +=1
+			#Horizontal placement, columns differ rows same
+			elif((currentTile == "L") and (currentColumn + 1 < numColumns) and (board[currentRow][currentColumn + 1] == "R")):
+				magnetLocations.append((currentRow, currentColumn, currentRow, currentColumn + 1))
+				#Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
+				rowRemainingHorizontalPositives[currentRow]	+= 1				#(L, R)
+				rowRemainingHorizontalNegatives[currentRow]	+= 1				#(L, R)
+				columnRemainingHorizontalPositives[currentColumn] += 1			#(L, R)	
+				columnRemainingHorizontalNegatives[currentColumn] += 1			#(L, R)	
+				columnRemainingHorizontalPositives[currentColumn + 1] += 1		#(L, R)	
+				columnRemainingHorizontalNegatives[currentColumn + 1] += 1		#(L, R)	
+			#Vertical placement, rows differ columns same
+			elif((currentTile == "T") and (currentRow + 1 < numRows) and (board[currentRow + 1][currentColumn] == "B")):
+				magnetLocations.append((currentRow, currentColumn, currentRow + 1, currentColumn))
+				#Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
+				rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
+				rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
+				rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
+				rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+				columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+				columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
+			#X
+			elif(currentTile == "X"):
+				rowNumX[currentRow] += 1
+				columnNumX[currentColumn] += 1
 
-    for currentRow in range(numRows):
-        for currentColumn in range(numColumns):
-            currentTile = board[currentRow][currentColumn]
-            #Positive charge
-            if(currentTile == "+"):
-                rowPositives[currentRow] += 1
-                columnPositives[currentColumn] += 1
-            #Negative charge
-            elif(currentTile == "-"):
-                rowNegatives[currentRow] += 1
-                columnNegatives[currentColumn] +=1
-            #Horizontal placement, columns differ rows same
-            elif((currentTile == "L") and (currentColumn + 1 < numColumns) and (board[currentRow][currentColumn + 1] == "R")):
-                magnetLocations.append((currentRow, currentColumn, currentRow, currentColumn + 1))
-                #Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
-                rowRemainingHorizontalPositives[currentRow]	+= 1				#(L, R)
-                rowRemainingHorizontalNegatives[currentRow]	+= 1				#(L, R)
-                columnRemainingHorizontalPositives[currentColumn] += 1			#(L, R)	
-                columnRemainingHorizontalNegatives[currentColumn] += 1			#(L, R)	
-                columnRemainingHorizontalPositives[currentColumn + 1] += 1		#(L, R)	
-                columnRemainingHorizontalNegatives[currentColumn + 1] += 1		#(L, R)	
-            #Vertical placement, rows differ columns same
-            elif((currentTile == "T") and (currentRow + 1 < numRows) and (board[currentRow + 1][currentColumn] == "B")):
-                magnetLocations.append((currentRow, currentColumn, currentRow + 1, currentColumn))
-                #Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
-                rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
-                rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
-                rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
-                rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
-                columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
-                columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
-            #X
-            elif(currentTile == "X"):
-                rowNumX[currentRow] += 1
-                columnNumX[currentColumn] += 1
-
-    neighbourLocations = {}
-    magnetMRVs = {1: set(), 2: set(), 3: set()}
-    for position in magnetLocations:
-        countMRV = calcMRV(board, specs, position)
-        magnetMRVs[countMRV].add(position)
-        rowOne, columnOne, rowTwo, columnTwo = position
-        neighbours = []
-        for neighbourPosition in magnetLocations:
-            if(neighbourPosition == position):
-                continue
-            neighbourRowOne, neighbourColumnOne, neighbourRowTwo, neighbourColumnTwo = neighbourPosition
-            if(neighbourRowOne == rowOne or neighbourRowOne == rowTwo or neighbourRowTwo == rowOne or neighbourRowTwo == rowTwo or neighbourColumnOne == columnOne or neighbourColumnOne == columnTwo or neighbourColumnTwo == columnOne or neighbourColumnTwo == columnTwo):
-                neighbours.append(neighbourPosition)
-        neighbourLocations[position] = neighbours
-    global dfsCallCount
-    dfsCallCount = 0
-    result = dfs(board, specs, numRows, numColumns)
-    print(f"DFS calls: {dfsCallCount}")
-    return result
+	neighbourLocations = {}
+	magnetMRVs = {1: set(), 2: set(), 3: set()}
+	for position in magnetLocations:
+		countMRV = calcMRV(board, specs, position)
+		magnetMRVs[countMRV].add(position)
+		rowOne, columnOne, rowTwo, columnTwo = position
+		neighbours = []
+		for neighbourPosition in magnetLocations:
+			if(neighbourPosition == position):
+				continue
+			neighbourRowOne, neighbourColumnOne, neighbourRowTwo, neighbourColumnTwo = neighbourPosition
+			if(neighbourRowOne == rowOne or neighbourRowOne == rowTwo or neighbourRowTwo == rowOne or neighbourRowTwo == rowTwo or neighbourColumnOne == columnOne or neighbourColumnOne == columnTwo or neighbourColumnTwo == columnOne or neighbourColumnTwo == columnTwo):
+				neighbours.append(neighbourPosition)
+		neighbourLocations[position] = neighbours
+	global dfsCallCount
+	dfsCallCount = 0
+	result = dfs(board, specs, numRows, numColumns)
+	print(f"DFS calls: {dfsCallCount}")
+	return result
 
 def dfs(board, specs, numRows, numColumns):
-    global dfsCallCount
-    dfsCallCount += 1
-    if(len(magnetMRVs[1]) > 0):
-        position = next(iter(magnetMRVs[1]))
-        magnetMRVs[1].remove(position)
-    elif(len(magnetMRVs[2]) > 0):
-        position = next(iter(magnetMRVs[2]))
-        magnetMRVs[2].remove(position)
-    elif(len(magnetMRVs[3]) > 0):
-        position = next(iter(magnetMRVs[3]))
-        magnetMRVs[3].remove(position)
-    else:
-        if(validateConfiguration(board, specs)):
-            return [row[:] for row in board]
-        return None
+	global dfsCallCount
+	dfsCallCount += 1
 
-    rowOne, columnOne, rowTwo, columnTwo = position
+	if(len(magnetMRVs[1]) > 0):
+		position = next(iter(magnetMRVs[1]))
+		magnetMRVs[1].remove(position)
+	elif(len(magnetMRVs[2]) > 0):
+		position = next(iter(magnetMRVs[2]))
+		magnetMRVs[2].remove(position)
+	elif(len(magnetMRVs[3]) > 0):
+		position = next(iter(magnetMRVs[3]))
+		magnetMRVs[3].remove(position)
+	else:
+		if(validateConfiguration(board, specs)):
+			return [row[:] for row in board]
+		return None
 
-    tileOne = board[rowOne][columnOne]
-    tileTwo = board[rowTwo][columnTwo]
+	rowOne, columnOne, rowTwo, columnTwo = position
 
-    #See if horizontal magnet can exist, columns differ rows are same
-    if(horizontalPlacementExists(tileOne, board, rowOne, columnOne, numRows, numColumns)):
-        originalFirstCharge = tileOne
-        originalSecondCharge = tileTwo
-        #Try horizontal magnet in (+, -) orientation
-        if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
-            board[rowOne][columnOne] = "+"
-            board[rowTwo][columnTwo] = "-"
-            rowPositives[rowOne] += 1
-            rowNegatives[rowOne] += 1
-            columnPositives[columnOne] += 1
-            columnNegatives[columnTwo] += 1
-            rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
-            rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
-            columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
-            columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
-            neighboursUpdated = False
-            if(forwardCheck(specs, numRows, numColumns)):
-                #Update neighbouring magnet MRV(s)
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
-                neighboursUpdated = True		
-                result = dfs(board, specs, numRows, numColumns)
-                if (result):
-                    return result
+	tileOne = board[rowOne][columnOne]
+	tileTwo = board[rowTwo][columnTwo]
 
-            #Backtrack
-            board[rowOne][columnOne] = originalFirstCharge
-            board[rowTwo][columnTwo] = originalSecondCharge
-            rowPositives[rowOne] -= 1
-            rowNegatives[rowOne] -= 1
-            columnPositives[columnOne] -= 1
-            columnNegatives[columnTwo] -= 1
-            rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
-            rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
-            columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
-            columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
-            #Restore neighbouring magnet MRV(s)
-            if(neighboursUpdated):
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
+	#See if horizontal magnet can exist, columns differ rows are same
+	if(horizontalPlacementExists(tileOne, board, rowOne, columnOne, numRows, numColumns)):
+		originalFirstCharge = tileOne
+		originalSecondCharge = tileTwo
+		#Try horizontal magnet in (+, -) orientation
+		if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
+			board[rowOne][columnOne] = "+"
+			board[rowTwo][columnTwo] = "-"
+			rowPositives[rowOne] += 1
+			rowNegatives[rowOne] += 1
+			columnPositives[columnOne] += 1
+			columnNegatives[columnTwo] += 1
+			rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
+			rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
+			columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
+			columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
+			neighboursUpdated = False
+			if(forwardCheck(board, specs, position)):
+				#Update neighbouring magnet MRV(s)
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
+				neighboursUpdated = True		
+				result = dfs(board, specs, numRows, numColumns)
+				if (result):
+					return result
 
-        #Try horizontal magnet in (-, +) orientation
-        if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
-            board[rowOne][columnOne] = "-"
-            board[rowTwo][columnTwo] = "+"
-            rowPositives[rowOne] += 1
-            rowNegatives[rowOne] += 1
-            columnNegatives[columnOne] += 1
-            columnPositives[columnTwo] += 1
-            rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
-            rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
-            columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
-            columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
-            neighboursUpdated = False
-            if(forwardCheck(specs, numRows, numColumns)):
-                #Update neighbouring magnet MRV(s)
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
-                neighboursUpdated = True		
-                result = dfs(board, specs, numRows, numColumns)
-                if (result):
-                    return result
+			#Backtrack
+			board[rowOne][columnOne] = originalFirstCharge
+			board[rowTwo][columnTwo] = originalSecondCharge
+			rowPositives[rowOne] -= 1
+			rowNegatives[rowOne] -= 1
+			columnPositives[columnOne] -= 1
+			columnNegatives[columnTwo] -= 1
+			rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
+			rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
+			columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
+			columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
+			#Restore neighbouring magnet MRV(s)
+			if(neighboursUpdated):
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
 
-            #Backtrack
-            board[rowOne][columnOne] = originalFirstCharge
-            board[rowTwo][columnTwo] = originalSecondCharge
-            rowPositives[rowOne] -= 1
-            rowNegatives[rowOne] -= 1
-            columnNegatives[columnOne] -= 1
-            columnPositives[columnTwo] -= 1
-            rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
-            rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
-            columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
-            columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
-            columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
-            #Restore neighbouring magnet MRV(s)
-            if(neighboursUpdated):
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
+		#Try horizontal magnet in (-, +) orientation
+		if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
+			board[rowOne][columnOne] = "-"
+			board[rowTwo][columnTwo] = "+"
+			rowPositives[rowOne] += 1
+			rowNegatives[rowOne] += 1
+			columnNegatives[columnOne] += 1
+			columnPositives[columnTwo] += 1
+			rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
+			rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
+			columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
+			columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
+			neighboursUpdated = False
+			if(forwardCheck(board, specs, position)):
+				#Update neighbouring magnet MRV(s)
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
+				neighboursUpdated = True		
+				result = dfs(board, specs, numRows, numColumns)
+				if (result):
+					return result
 
-        #Try skipping this magnet slot
-        board[rowOne][columnOne] = "X"
-        board[rowTwo][columnTwo] = "X"
-        rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
-        rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
-        columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
-        columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
-        columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
-        columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
-        neighboursUpdated = False
-        if(forwardCheck(specs, numRows, numColumns)):
-            #Update neighbouring magnet MRV(s)
-            for neighbourPosition in neighbourLocations[position]:
-                if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                    magnetMRVs[1].discard(neighbourPosition)
-                    magnetMRVs[2].discard(neighbourPosition)
-                    magnetMRVs[3].discard(neighbourPosition)
-                    neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                    magnetMRVs[neighbourMRV].add(neighbourPosition)
-            neighboursUpdated = True
-            result = dfs(board, specs, numRows, numColumns)
-            if(result):
-                return result
+			#Backtrack
+			board[rowOne][columnOne] = originalFirstCharge
+			board[rowTwo][columnTwo] = originalSecondCharge
+			rowPositives[rowOne] -= 1
+			rowNegatives[rowOne] -= 1
+			columnNegatives[columnOne] -= 1
+			columnPositives[columnTwo] -= 1
+			rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
+			rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
+			columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
+			columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
+			#Restore neighbouring magnet MRV(s)
+			if(neighboursUpdated):
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
 
-        #Backtrack
-        board[rowOne][columnOne] = originalFirstCharge
-        board[rowTwo][columnTwo] = originalSecondCharge
-        rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
-        rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
-        columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
-        columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
-        columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
-        columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
-        #Restore neighbouring magnet MRV(s)
-        if(neighboursUpdated):
-            for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
-        magnetMRVs[calcMRV(board, specs, position)].add(position)
-        return None
+		#Try skipping this magnet slot
+		board[rowOne][columnOne] = "X"
+		board[rowTwo][columnTwo] = "X"
+		rowRemainingHorizontalPositives[rowOne] -= 1				#(L, R)
+		rowRemainingHorizontalNegatives[rowOne] -= 1				#(L, R)
+		columnRemainingHorizontalPositives[columnOne] -= 1			#(L, R)
+		columnRemainingHorizontalNegatives[columnOne] -= 1			#(L, R)
+		columnRemainingHorizontalPositives[columnTwo] -= 1			#(L, R)
+		columnRemainingHorizontalNegatives[columnTwo] -= 1			#(L, R)	
+		neighboursUpdated = False
+		if(forwardCheck(board, specs, position)):
+			#Update neighbouring magnet MRV(s)
+			for neighbourPosition in neighbourLocations[position]:
+				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+					magnetMRVs[1].discard(neighbourPosition)
+					magnetMRVs[2].discard(neighbourPosition)
+					magnetMRVs[3].discard(neighbourPosition)
+					neighbourMRV = calcMRV(board, specs, neighbourPosition)
+					magnetMRVs[neighbourMRV].add(neighbourPosition)
+			neighboursUpdated = True
+			result = dfs(board, specs, numRows, numColumns)
+			if(result):
+				return result
 
-    #See if vertical magnet can exist, rows differ columns are same
-    if(verticalPlacementExists(tileOne, board, rowOne, columnOne, numRows, numColumns)):
-        originalFirstCharge = tileOne
-        originalSecondCharge = tileTwo
-        #Try vertical magnet in (+, -) orientation
-        if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
-            board[rowOne][columnOne] = "+"
-            board[rowTwo][columnTwo] = "-"
-            rowPositives[rowOne] += 1
-            rowNegatives[rowTwo] += 1
-            columnNegatives[columnOne] += 1
-            columnPositives[columnOne] += 1
-            rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
-            rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
-            rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
-            rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
-            columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
-            columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
-            neighboursUpdated = False
-            if(forwardCheck(specs, numRows, numColumns)):
-                #Update neighbouring magnet MRV(s)
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
-                neighboursUpdated = True
-                result = dfs(board, specs, numRows, numColumns)
-                if (result):
-                    return result
+		#Backtrack
+		board[rowOne][columnOne] = originalFirstCharge
+		board[rowTwo][columnTwo] = originalSecondCharge
+		rowRemainingHorizontalPositives[rowOne] += 1				#(L, R)
+		rowRemainingHorizontalNegatives[rowOne] += 1				#(L, R)
+		columnRemainingHorizontalPositives[columnOne] += 1			#(L, R)
+		columnRemainingHorizontalNegatives[columnOne] += 1			#(L, R)
+		columnRemainingHorizontalPositives[columnTwo] += 1			#(L, R)
+		columnRemainingHorizontalNegatives[columnTwo] += 1			#(L, R)
+		#Restore neighbouring magnet MRV(s)
+		if(neighboursUpdated):
+			for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
+		magnetMRVs[calcMRV(board, specs, position)].add(position)
+		return None
 
-            #Backtrack
-            board[rowOne][columnOne] = originalFirstCharge
-            board[rowTwo][columnTwo] = originalSecondCharge
-            rowPositives[rowOne] -= 1
-            rowNegatives[rowTwo] -= 1
-            columnNegatives[columnOne] -= 1
-            columnPositives[columnOne] -= 1
-            rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
-            rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
-            rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
-            rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
-            columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
-            columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
-            #Restore neighbouring magnet MRV(s)
-            if(neighboursUpdated):
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
+	#See if vertical magnet can exist, rows differ columns are same
+	if(verticalPlacementExists(tileOne, board, rowOne, columnOne, numRows, numColumns)):
+		originalFirstCharge = tileOne
+		originalSecondCharge = tileTwo
+		#Try vertical magnet in (+, -) orientation
+		if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
+			board[rowOne][columnOne] = "+"
+			board[rowTwo][columnTwo] = "-"
+			rowPositives[rowOne] += 1
+			rowNegatives[rowTwo] += 1
+			columnNegatives[columnOne] += 1
+			columnPositives[columnOne] += 1
+			rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
+			rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
+			columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
+			columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
+			neighboursUpdated = False
+			if(forwardCheck(board, specs, position)):
+				#Update neighbouring magnet MRV(s)
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
+				neighboursUpdated = True
+				result = dfs(board, specs, numRows, numColumns)
+				if (result):
+					return result
 
-        #Try vertical magnet in (-, +) orientation
-        if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
-            board[rowOne][columnOne] = "-"
-            board[rowTwo][columnTwo] = "+"
-            rowNegatives[rowOne] += 1
-            rowPositives[rowTwo] += 1
-            columnNegatives[columnOne] += 1
-            columnPositives[columnOne] += 1
-            rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
-            rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
-            rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
-            rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
-            columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
-            columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
-            neighboursUpdated = False
-            if(forwardCheck(specs, numRows, numColumns)):
-                #Update neighbouring magnet MRV(s)
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
-                neighboursUpdated = True
-                result = dfs(board, specs, numRows, numColumns)
-                if (result):
-                    return result
+			#Backtrack
+			board[rowOne][columnOne] = originalFirstCharge
+			board[rowTwo][columnTwo] = originalSecondCharge
+			rowPositives[rowOne] -= 1
+			rowNegatives[rowTwo] -= 1
+			columnNegatives[columnOne] -= 1
+			columnPositives[columnOne] -= 1
+			rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
+			rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
+			rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
+			rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
+			columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
+			columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
+			#Restore neighbouring magnet MRV(s)
+			if(neighboursUpdated):
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
 
-            #Backtrack
-            board[rowOne][columnOne] = originalFirstCharge
-            board[rowTwo][columnTwo] = originalSecondCharge
-            rowNegatives[rowOne] -= 1
-            rowPositives[rowTwo] -= 1
-            columnNegatives[columnOne] -= 1
-            columnPositives[columnOne] -= 1
-            rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
-            rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
-            rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
-            rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
-            columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
-            columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
-            #Restore neighbouring magnet MRV(s)
-            if(neighboursUpdated):
-                for neighbourPosition in neighbourLocations[position]:
-                    if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                        magnetMRVs[1].discard(neighbourPosition)
-                        magnetMRVs[2].discard(neighbourPosition)
-                        magnetMRVs[3].discard(neighbourPosition)
-                        neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                        magnetMRVs[neighbourMRV].add(neighbourPosition)
+		#Try vertical magnet in (-, +) orientation
+		if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
+			board[rowOne][columnOne] = "-"
+			board[rowTwo][columnTwo] = "+"
+			rowNegatives[rowOne] += 1
+			rowPositives[rowTwo] += 1
+			columnNegatives[columnOne] += 1
+			columnPositives[columnOne] += 1
+			rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
+			rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
+			columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
+			columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
+			neighboursUpdated = False
+			if(forwardCheck(board, specs, position)):
+				#Update neighbouring magnet MRV(s)
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
+				neighboursUpdated = True
+				result = dfs(board, specs, numRows, numColumns)
+				if (result):
+					return result
 
-        #Try skipping this magnet slot
-        board[rowOne][columnOne] = "X"
-        board[rowTwo][columnTwo] = "X"
-        rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
-        rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
-        rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
-        rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
-        columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
-        columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
-        neighboursUpdated = False
-        if(forwardCheck(specs, numRows, numColumns)):
-            #Update neighbouring magnet MRV(s)
-            for neighbourPosition in neighbourLocations[position]:
-                if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                    magnetMRVs[1].discard(neighbourPosition)
-                    magnetMRVs[2].discard(neighbourPosition)
-                    magnetMRVs[3].discard(neighbourPosition)
-                    neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                    magnetMRVs[neighbourMRV].add(neighbourPosition)
-            neighboursUpdated = True
-            result = dfs(board, specs, numRows, numColumns)
-            if (result):
-                return result
+			#Backtrack
+			board[rowOne][columnOne] = originalFirstCharge
+			board[rowTwo][columnTwo] = originalSecondCharge
+			rowNegatives[rowOne] -= 1
+			rowPositives[rowTwo] -= 1
+			columnNegatives[columnOne] -= 1
+			columnPositives[columnOne] -= 1
+			rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
+			rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
+			rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
+			rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
+			columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
+			columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
+			#Restore neighbouring magnet MRV(s)
+			if(neighboursUpdated):
+				for neighbourPosition in neighbourLocations[position]:
+					if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+						magnetMRVs[1].discard(neighbourPosition)
+						magnetMRVs[2].discard(neighbourPosition)
+						magnetMRVs[3].discard(neighbourPosition)
+						neighbourMRV = calcMRV(board, specs, neighbourPosition)
+						magnetMRVs[neighbourMRV].add(neighbourPosition)
 
-        # Backtrack
-        board[rowOne][columnOne] = originalFirstCharge
-        board[rowTwo][columnTwo] = originalSecondCharge
-        rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
-        rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
-        rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
-        rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
-        columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
-        columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
-        #Restore neighbouring magnet MRV(s)
-        if(neighboursUpdated):
-            for neighbourPosition in neighbourLocations[position]:
-                if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
-                    magnetMRVs[1].discard(neighbourPosition)
-                    magnetMRVs[2].discard(neighbourPosition)
-                    magnetMRVs[3].discard(neighbourPosition)
-                    neighbourMRV = calcMRV(board, specs, neighbourPosition)
-                    magnetMRVs[neighbourMRV].add(neighbourPosition)
-        magnetMRVs[calcMRV(board, specs, position)].add(position)
-        return None
+		#Try skipping this magnet slot
+		board[rowOne][columnOne] = "X"
+		board[rowTwo][columnTwo] = "X"
+		rowRemainingVerticalPositives[rowOne] -= 1					#(T, B)
+		rowRemainingVerticalNegatives[rowOne] -= 1					#(T, B)
+		rowRemainingVerticalPositives[rowTwo] -= 1					#(T, B)
+		rowRemainingVerticalNegatives[rowTwo] -= 1					#(T, B)
+		columnRemainingVerticalPositives[columnOne] -= 1			#(T, B)
+		columnRemainingVerticalNegatives[columnOne] -= 1			#(T, B)
+		neighboursUpdated = False
+		if(forwardCheck(board, specs, position)):
+			#Update neighbouring magnet MRV(s)
+			for neighbourPosition in neighbourLocations[position]:
+				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+					magnetMRVs[1].discard(neighbourPosition)
+					magnetMRVs[2].discard(neighbourPosition)
+					magnetMRVs[3].discard(neighbourPosition)
+					neighbourMRV = calcMRV(board, specs, neighbourPosition)
+					magnetMRVs[neighbourMRV].add(neighbourPosition)
+			neighboursUpdated = True
+			result = dfs(board, specs, numRows, numColumns)
+			if (result):
+				return result
 
-    #No valid placement found
-    #heapq.heappush(minMRVHeap, (countMRV, position))
-    magnetMRVs[calcMRV(board, specs, position)].add(position)
-    return None
+		# Backtrack
+		board[rowOne][columnOne] = originalFirstCharge
+		board[rowTwo][columnTwo] = originalSecondCharge
+		rowRemainingVerticalPositives[rowOne] += 1					#(T, B)
+		rowRemainingVerticalNegatives[rowOne] += 1					#(T, B)
+		rowRemainingVerticalPositives[rowTwo] += 1					#(T, B)
+		rowRemainingVerticalNegatives[rowTwo] += 1					#(T, B)
+		columnRemainingVerticalPositives[columnOne] += 1			#(T, B)
+		columnRemainingVerticalNegatives[columnOne] += 1			#(T, B)
+		#Restore neighbouring magnet MRV(s)
+		if(neighboursUpdated):
+			for neighbourPosition in neighbourLocations[position]:
+				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+					magnetMRVs[1].discard(neighbourPosition)
+					magnetMRVs[2].discard(neighbourPosition)
+					magnetMRVs[3].discard(neighbourPosition)
+					neighbourMRV = calcMRV(board, specs, neighbourPosition)
+					magnetMRVs[neighbourMRV].add(neighbourPosition)
+		magnetMRVs[calcMRV(board, specs, position)].add(position)
+		return None
+
+	#No valid placement found
+	#heapq.heappush(minMRVHeap, (countMRV, position))
+	magnetMRVs[calcMRV(board, specs, position)].add(position)
+	return None
 
 #charge is either + or -
 def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge, specs): 
@@ -502,7 +503,238 @@ def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge
 	#Constraint can still be fulfilled in the row
 	return True 
 
-def forwardCheck(specs, numRows, numColumns):
+def forwardCheck(board, specs, position):
+	left, right, top, bottom = specs
+	rowOne, columnOne, rowTwo, columnTwo = position
+
+	if(left[rowOne] > 0 and right[rowOne] > 0):
+		if(rowPositives[rowOne] > left[rowOne] or rowNegatives[rowOne] > right[rowOne] or (rowPositives[rowOne] + rowRemainingHorizontalPositives[rowOne] + rowRemainingVerticalPositives[rowOne]) < left[rowOne] or (rowNegatives[rowOne] + rowRemainingHorizontalNegatives[rowOne] + rowRemainingVerticalNegatives[rowOne]) < right[rowOne]):
+			return False
+	elif(left[rowOne] > 0 and right[rowOne] == -1):
+		if(rowPositives[rowOne] > left[rowOne] or (rowPositives[rowOne] + rowRemainingHorizontalPositives[rowOne] + rowRemainingVerticalPositives[rowOne]) < left[rowOne]):
+			return False
+	elif(left[rowOne] == -1 and right[rowOne] > 0):
+		if(rowNegatives[rowOne] > right[rowOne] or (rowNegatives[rowOne] + rowRemainingHorizontalNegatives[rowOne] + rowRemainingVerticalNegatives[rowOne]) < right[rowOne]):
+			return False
+	elif(left[rowOne] > 0 and right[rowOne] == 0):
+		#Horizontals can't be placed, only verticals contribute positives
+		if(rowPositives[rowOne] > left[rowOne] or (rowPositives[rowOne] + rowRemainingVerticalPositives[rowOne]) < left[rowOne]):
+			return False
+	elif(left[rowOne] == 0 and right[rowOne] > 0):
+		#Horizontals can't be placed, only verticals contribute negatives
+		if(rowNegatives[rowOne] > right[rowOne] or (rowNegatives[rowOne] + rowRemainingVerticalNegatives[rowOne]) < right[rowOne]):
+			return False
+	elif(left[rowOne] == 0 and right[rowOne] == -1):
+		if(rowPositives[rowOne] > 0):
+			return False
+	elif(left[rowOne] == -1 and right[rowOne] == 0):
+		if(rowNegatives[rowOne] > 0):
+			return False
+	elif(left[rowOne] == 0 and right[rowOne] == 0):
+		if(rowPositives[rowOne] > 0 or rowNegatives[rowOne] > 0):
+			return False
+	
+	if(rowOne != rowTwo):
+		if(left[rowTwo] > 0 and right[rowTwo] > 0):
+			if(rowPositives[rowTwo] > left[rowTwo] or rowNegatives[rowTwo] > right[rowTwo] or (rowPositives[rowTwo] + rowRemainingHorizontalPositives[rowTwo] + rowRemainingVerticalPositives[rowTwo]) < left[rowTwo] or (rowNegatives[rowTwo] + rowRemainingHorizontalNegatives[rowTwo] + rowRemainingVerticalNegatives[rowTwo]) < right[rowTwo]):
+				return False
+		elif(left[rowTwo] > 0 and right[rowTwo] == -1):
+			if(rowPositives[rowTwo] > left[rowTwo] or (rowPositives[rowTwo] + rowRemainingHorizontalPositives[rowTwo] + rowRemainingVerticalPositives[rowTwo]) < left[rowTwo]):
+				return False
+		elif(left[rowTwo] == -1 and right[rowTwo] > 0):
+			if(rowNegatives[rowTwo] > right[rowTwo] or (rowNegatives[rowTwo] + rowRemainingHorizontalNegatives[rowTwo] + rowRemainingVerticalNegatives[rowTwo]) < right[rowTwo]):
+				return False
+		elif(left[rowTwo] > 0 and right[rowTwo] == 0):
+			#Horizontals can't be placed, only verticals contribute positives
+			if(rowPositives[rowTwo] > left[rowTwo] or (rowPositives[rowTwo] + rowRemainingVerticalPositives[rowTwo]) < left[rowTwo]):
+				return False
+		elif(left[rowTwo] == 0 and right[rowTwo] > 0):
+			#Horizontals can't be placed, only verticals contribute negatives
+			if(rowNegatives[rowTwo] > right[rowTwo] or (rowNegatives[rowTwo] + rowRemainingVerticalNegatives[rowTwo]) < right[rowTwo]):
+				return False
+		elif(left[rowTwo] == 0 and right[rowTwo] == -1):
+			if(rowPositives[rowTwo] > 0):
+				return False
+		elif(left[rowTwo] == -1 and right[rowTwo] == 0):
+			if(rowNegatives[rowTwo] > 0):
+				return False
+		elif(left[rowTwo] == 0 and right[rowTwo] == 0):
+			if(rowPositives[rowTwo] > 0 or rowNegatives[rowTwo] > 0):
+				return False
+		
+	if(top[columnOne] > 0 and bottom[columnOne] > 0):
+		if(columnPositives[columnOne] > top[columnOne] or columnNegatives[columnOne] > bottom[columnOne] or (columnPositives[columnOne] + columnRemainingVerticalPositives[columnOne] + columnRemainingHorizontalPositives[columnOne]) < top[columnOne] or (columnNegatives[columnOne] + columnRemainingVerticalNegatives[columnOne] + columnRemainingHorizontalNegatives[columnOne]) < bottom[columnOne]):
+			return False
+	elif(top[columnOne] > 0 and bottom[columnOne] == -1):
+		if(columnPositives[columnOne] > top[columnOne] or (columnPositives[columnOne] + columnRemainingVerticalPositives[columnOne] + columnRemainingHorizontalPositives[columnOne]) < top[columnOne]):
+			return False
+	elif(top[columnOne] == -1 and bottom[columnOne] > 0):
+		if(columnNegatives[columnOne] > bottom[columnOne] or (columnNegatives[columnOne] + columnRemainingVerticalNegatives[columnOne] + columnRemainingHorizontalNegatives[columnOne]) < bottom[columnOne]):
+			return False
+	elif(top[columnOne] > 0 and bottom[columnOne] == 0):
+		#Verticals can't be placed, only horizontals contribute positives
+		if(columnPositives[columnOne] > top[columnOne] or (columnPositives[columnOne] + columnRemainingHorizontalPositives[columnOne]) < top[columnOne]):
+			return False
+	elif(top[columnOne] == 0 and bottom[columnOne] > 0):
+		#Verticals can't be placed, only horizontals contribute negatives
+		if(columnNegatives[columnOne] > bottom[columnOne] or (columnNegatives[columnOne] + columnRemainingHorizontalNegatives[columnOne]) < bottom[columnOne]):
+			return False
+	elif(top[columnOne] == 0 and bottom[columnOne] == -1):
+		if(columnPositives[columnOne] > 0):
+			return False
+	elif(top[columnOne] == -1 and bottom[columnOne] == 0):
+		if(columnNegatives[columnOne] > 0):
+			return False
+	elif(top[columnOne] == 0 and bottom[columnOne] == 0):
+		if(columnPositives[columnOne] > 0 or columnNegatives[columnOne] > 0):
+			return False
+		
+	if(columnOne != columnTwo):	
+		if(top[columnTwo] > 0 and bottom[columnTwo] > 0):
+			if(columnPositives[columnTwo] > top[columnTwo] or columnNegatives[columnTwo] > bottom[columnTwo] or (columnPositives[columnTwo] + columnRemainingVerticalPositives[columnTwo] + columnRemainingHorizontalPositives[columnTwo]) < top[columnTwo] or (columnNegatives[columnTwo] + columnRemainingVerticalNegatives[columnTwo] + columnRemainingHorizontalNegatives[columnTwo]) < bottom[columnTwo]):
+				return False
+		elif(top[columnTwo] > 0 and bottom[columnTwo] == -1):
+			if(columnPositives[columnTwo] > top[columnTwo] or (columnPositives[columnTwo] + columnRemainingVerticalPositives[columnTwo] + columnRemainingHorizontalPositives[columnTwo]) < top[columnTwo]):
+				return False
+		elif(top[columnTwo] == -1 and bottom[columnTwo] > 0):
+			if(columnNegatives[columnTwo] > bottom[columnTwo] or (columnNegatives[columnTwo] + columnRemainingVerticalNegatives[columnTwo] + columnRemainingHorizontalNegatives[columnTwo]) < bottom[columnTwo]):
+				return False
+		elif(top[columnTwo] > 0 and bottom[columnTwo] == 0):
+			#Verticals can't be placed, only horizontals contribute positives
+			if(columnPositives[columnTwo] > top[columnTwo] or (columnPositives[columnTwo] + columnRemainingHorizontalPositives[columnTwo]) < top[columnTwo]):
+				return False
+		elif(top[columnTwo] == 0 and bottom[columnTwo] > 0):
+			#Verticals can't be placed, only horizontals contribute negatives
+			if(columnNegatives[columnTwo] > bottom[columnTwo] or (columnNegatives[columnTwo] + columnRemainingHorizontalNegatives[columnTwo]) < bottom[columnTwo]):
+				return False
+		elif(top[columnTwo] == 0 and bottom[columnTwo] == -1):
+			if(columnPositives[columnTwo] > 0):
+				return False
+		elif(top[columnTwo] == -1 and bottom[columnTwo] == 0):
+			if(columnNegatives[columnTwo] > 0):
+				return False
+		elif(top[columnTwo] == 0 and bottom[columnTwo] == 0):
+			if(columnPositives[columnTwo] > 0 or columnNegatives[columnTwo] > 0):
+				return False
+		
+	for neighbourPosition in neighbourLocations[position]:
+		#Check if nieghbour wasn't placed on yet since if it was placed on already 
+		if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
+			neighbourRowOne, neighbourColumnOne, neighbourRowTwo, neighbourColumnTwo = neighbourPosition
+
+			if(left[neighbourRowOne] > 0 and right[neighbourRowOne] > 0):
+				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingHorizontalPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingHorizontalNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
+					return False
+			elif(left[neighbourRowOne] > 0 and right[neighbourRowOne] == -1):
+				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingHorizontalPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne]):
+					return False
+			elif(left[neighbourRowOne] == -1 and right[neighbourRowOne] > 0):
+				if(rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingHorizontalNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
+					return False
+			elif(left[neighbourRowOne] > 0 and right[neighbourRowOne] == 0):
+				#Horizontals can't be placed, only verticals contribute positives
+				if(rowPositives[neighbourRowOne] > left[neighbourRowOne] or (rowPositives[neighbourRowOne] + rowRemainingVerticalPositives[neighbourRowOne]) < left[neighbourRowOne]):
+					return False
+			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] > 0):
+				#Horizontals can't be placed, only verticals contribute negatives
+				if(rowNegatives[neighbourRowOne] > right[neighbourRowOne] or (rowNegatives[neighbourRowOne] + rowRemainingVerticalNegatives[neighbourRowOne]) < right[neighbourRowOne]):
+					return False
+			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] == -1):
+				if(rowPositives[neighbourRowOne] > 0):
+					return False
+			elif(left[neighbourRowOne] == -1 and right[neighbourRowOne] == 0):
+				if(rowNegatives[neighbourRowOne] > 0):
+					return False
+			elif(left[neighbourRowOne] == 0 and right[neighbourRowOne] == 0):
+				if(rowPositives[neighbourRowOne] > 0 or rowNegatives[neighbourRowOne] > 0):
+					return False
+				
+			if(neighbourRowOne != neighbourRowTwo):
+				if(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] > 0):
+					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingHorizontalPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingHorizontalNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
+						return False
+				elif(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] == -1):
+					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingHorizontalPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo]):
+						return False
+				elif(left[neighbourRowTwo] == -1 and right[neighbourRowTwo] > 0):
+					if(rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingHorizontalNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
+						return False
+				elif(left[neighbourRowTwo] > 0 and right[neighbourRowTwo] == 0):
+					#Horizontals can't be placed, only verticals contribute positives
+					if(rowPositives[neighbourRowTwo] > left[neighbourRowTwo] or (rowPositives[neighbourRowTwo] + rowRemainingVerticalPositives[neighbourRowTwo]) < left[neighbourRowTwo]):
+						return False
+				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] > 0):
+					#Horizontals can't be placed, only verticals contribute negatives
+					if(rowNegatives[neighbourRowTwo] > right[neighbourRowTwo] or (rowNegatives[neighbourRowTwo] + rowRemainingVerticalNegatives[neighbourRowTwo]) < right[neighbourRowTwo]):
+						return False
+				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] == -1):
+					if(rowPositives[neighbourRowTwo] > 0):
+						return False
+				elif(left[neighbourRowTwo] == -1 and right[neighbourRowTwo] == 0):
+					if(rowNegatives[neighbourRowTwo] > 0):
+						return False
+				elif(left[neighbourRowTwo] == 0 and right[neighbourRowTwo] == 0):
+					if(rowPositives[neighbourRowTwo] > 0 or rowNegatives[neighbourRowTwo] > 0):
+						return False
+			
+			if(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] > 0):
+				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingVerticalPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingVerticalNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
+					return False
+			elif(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] == -1):
+				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingVerticalPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne]):
+					return False
+			elif(top[neighbourColumnOne] == -1 and bottom[neighbourColumnOne] > 0):
+				if(columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingVerticalNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
+					return False
+			elif(top[neighbourColumnOne] > 0 and bottom[neighbourColumnOne] == 0):
+				#Verticals can't be placed, only horizontals contribute positives
+				if(columnPositives[neighbourColumnOne] > top[neighbourColumnOne] or (columnPositives[neighbourColumnOne] + columnRemainingHorizontalPositives[neighbourColumnOne]) < top[neighbourColumnOne]):
+					return False
+			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] > 0):
+				#Verticals can't be placed, only horizontals contribute negatives
+				if(columnNegatives[neighbourColumnOne] > bottom[neighbourColumnOne] or (columnNegatives[neighbourColumnOne] + columnRemainingHorizontalNegatives[neighbourColumnOne]) < bottom[neighbourColumnOne]):
+					return False
+			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] == -1):
+				if(columnPositives[neighbourColumnOne] > 0):
+					return False
+			elif(top[neighbourColumnOne] == -1 and bottom[neighbourColumnOne] == 0):
+				if(columnNegatives[neighbourColumnOne] > 0):
+					return False
+			elif(top[neighbourColumnOne] == 0 and bottom[neighbourColumnOne] == 0):
+				if(columnPositives[neighbourColumnOne] > 0 or columnNegatives[neighbourColumnOne] > 0):
+					return False
+				
+			if(neighbourColumnOne != neighbourColumnTwo):	
+				if(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] > 0):
+					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingVerticalPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingVerticalNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
+						return False
+				elif(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] == -1):
+					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingVerticalPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo]):
+						return False
+				elif(top[neighbourColumnTwo] == -1 and bottom[neighbourColumnTwo] > 0):
+					if(columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingVerticalNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
+						return False
+				elif(top[neighbourColumnTwo] > 0 and bottom[neighbourColumnTwo] == 0):
+					#Verticals can't be placed, only horizontals contribute positives
+					if(columnPositives[neighbourColumnTwo] > top[neighbourColumnTwo] or (columnPositives[neighbourColumnTwo] + columnRemainingHorizontalPositives[neighbourColumnTwo]) < top[neighbourColumnTwo]):
+						return False
+				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] > 0):
+					#Verticals can't be placed, only horizontals contribute negatives
+					if(columnNegatives[neighbourColumnTwo] > bottom[neighbourColumnTwo] or (columnNegatives[neighbourColumnTwo] + columnRemainingHorizontalNegatives[neighbourColumnTwo]) < bottom[neighbourColumnTwo]):
+						return False
+				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] == -1):
+					if(columnPositives[neighbourColumnTwo] > 0):
+						return False
+				elif(top[neighbourColumnTwo] == -1 and bottom[neighbourColumnTwo] == 0):
+					if(columnNegatives[neighbourColumnTwo] > 0):
+						return False
+				elif(top[neighbourColumnTwo] == 0 and bottom[neighbourColumnTwo] == 0):
+					if(columnPositives[neighbourColumnTwo] > 0 or columnNegatives[neighbourColumnTwo] > 0):
+						return False
+		
+	return True
+
+def AC3(specs, numRows, numColumns):
 	left, right, top, bottom = specs
 
 	#Check all rows
@@ -575,6 +807,7 @@ def rowChargeCount(board, currentRow):
 			numPositivesInRow += 1
 		elif (currentTile == "-"):
 			numNegativesInRow += 1  
+
 	return numPositivesInRow, numNegativesInRow
 
 def columnChargeCount(board, numRows, currentColumn):
@@ -587,6 +820,7 @@ def columnChargeCount(board, numRows, currentColumn):
 			numPositivesInColumn += 1
 		elif (board[currentRowIndex][currentColumn] ==  "-"):
 			numNegativesInColumn += 1	
+
 	return numPositivesInColumn, numNegativesInColumn
 
 def remainingInRow(board, currentRow, numColumns):
@@ -608,6 +842,7 @@ def remainingInRow(board, currentRow, numColumns):
 		#+, -, X tiles
 		else:
 			currentColumn += 1
+
 	return rowRemainingHorizontalPositives, rowRemainingHorizontalNegatives, rowRemainingVerticalPositives, rowRemainingVerticalNegatives
 
 def remainingInColumn(board, currentColumn, numRows):
@@ -629,6 +864,7 @@ def remainingInColumn(board, currentColumn, numRows):
 		#+, -, X tiles
 		else:
 			currentRow += 1
+
 	return columnRemainingVerticalPositives, columnRemainingVerticalNegatives, columnRemainingHorizontalPositives, columnRemainingHorizontalNegatives
 
 def calcMRV(board, specs, position):
@@ -638,6 +874,7 @@ def calcMRV(board, specs, position):
 		count += 1
 	if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
 		count += 1
+
 	return count
 
 def validateRow(board, currentRow, currentColumn, specs):
@@ -706,6 +943,7 @@ def preZeroConstraintCheck(board, specs):
 				#board[currentRow][currentColumn] = "X"
 			#if ((currentTile == "T" or currentTile == "B") and (left[currentRow] == 0 or right[currentRow] == 0)):
 				#board[currentRow][currentColumn] = "X"
+
 	return board
 
 def validateConfiguration(board, specs):
@@ -790,7 +1028,6 @@ def validateConfiguration(board, specs):
 
 	#print("VALIDATION PASSED!")
 	return True         
-
 
 def print_board(board, title="Board:"):
     """Helper function to print the board nicely."""
