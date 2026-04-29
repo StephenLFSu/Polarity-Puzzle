@@ -13,23 +13,61 @@ def solve(board, specs):
 	board = preZeroConstraintCheck(board, specs)
 	startTime = time.time()
 	lastPrint = [startTime]
+	#Tile trackers
+	rowPositives = [0] * numRows								#(+)
+	rowNegatives = [0] * numRows								#(-)
+	columnPositives = [0] * numColumns							#(+)
+	columnNegatives = [0] * numColumns							#(-)
+	rowRemainingHorizontalPositives = [0] * numRows				#(L, R)
+	rowRemainingHorizontalNegatives = [0] * numRows				#(L, R)	
+	rowRemainingVerticalPositives = [0] * numRows				#(T, B)
+	rowRemainingVerticalNegatives = [0] * numRows				#(T, B)
+	columnRemainingVerticalPositives = [0] * numColumns			#(T, B)
+	columnRemainingVerticalNegatives = [0] * numColumns 		#(T, B)
+	columnRemainingHorizontalPositives = [0] * numColumns 		#(L, R)	
+	columnRemainingHorizontalNegatives = [0] * numColumns		#(L, R)	
+	rowNumX = [0] * numRows										#(X, X)				
+	columnNumX = [0] * numColumns								#(X. X)
+	for currentRow in range(numRows):
+		for currentColumn in range(numColumns):
+			currentTile = board[currentRow][currentColumn]
+			#Positive charge
+			if(currentTile == "+"):
+				rowPositives[currentRow] += 1
+				columnPositives[currentColumn] += 1
+			#Negative charge
+			elif(currentTile == "-"):
+				rowNegatives[currentRow] += 1
+				columnNegatives[currentColumn] +=1
+			#Horizontal placement, columns differ rows same
+			elif((currentTile == "L") and (currentColumn + 1 < numColumns) and (board[currentRow][currentColumn + 1] == "R")):
+				#Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
+				rowRemainingHorizontalPositives[currentRow]	+= 1				#(L, R)
+				rowRemainingHorizontalNegatives[currentRow]	+= 1				#(L, R)
+				columnRemainingHorizontalPositives[currentColumn] += 1			#(L, R)	
+				columnRemainingHorizontalNegatives[currentColumn] += 1			#(L, R)	
+				columnRemainingHorizontalPositives[currentColumn + 1] += 1		#(L, R)	
+				columnRemainingHorizontalNegatives[currentColumn + 1] += 1		#(L, R)	
+			#Vertical placement, rows differ columns same
+			elif((currentTile == "T") and (currentRow + 1 < numRows) and (board[currentRow + 1][currentColumn] == "B")):
+				#Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
+				columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+				columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
+				rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
+				rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
+				rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
+				rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+			#X
+			elif(currentTile == "X"):
+				rowNumX[currentRow] += 1
+				columnNumX[currentColumn] += 1
+
 	result = dfs(board, specs, 0, 0, numRows, numColumns, startTime, lastPrint)
 	return result
 
-def dfs(board, specs, currentRow, currentCol, numRows, numColumns, startTime, lastPrint):
-	#print(f"Visiting: row={currentRow}, col={currentCol}")
-	"""
-	currentTime = time.time()
-	if (currentTime - lastPrint[0] >= 30):
-		elapsed = currentTime - startTime
-		print(f"row={currentRow}, col={currentCol}, elapsed={elapsed:.0f}s")
-		print_board(board, "Board state:")
-		lastPrint[0] = currentTime"""
-	if (currentRow == numRows and currentCol == numColumns):
-		#print("Reached end of board:")
-		#for row in board:
-		#	print(row)
-		#print("---")
+def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime, lastPrint):
+	
+	if (currentRow == numRows and currentColumn == numColumns):
 		if (validateConfiguration(board, specs)):
 			print("SOLUTION FOUND!")
 			return  [row[:] for row in board]
@@ -38,20 +76,20 @@ def dfs(board, specs, currentRow, currentCol, numRows, numColumns, startTime, la
 
 	# Validate columns after all rows are filled
 	if (currentRow == numRows):
-		#print(f"Validating column {currentCol}")
-		if (validateCol(board, currentRow, currentCol, specs)):
-			#print(f"Col {currentCol} is VALID, moving to next column")
-			result = dfs(board, specs, numRows, currentCol + 1, numRows, numColumns, startTime, lastPrint)
+		#print(f"Validating column {currentColumn}")
+		if (validateColumn(board, currentRow, currentColumn, specs)):
+			#print(f"Col {currentColumn} is VALID, moving to next column")
+			result = dfs(board, specs, numRows, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 			return result
 		else:
-			#print(f"Col {currentCol} is INVALID, backtracking")
+			#print(f"Col {currentColumn} is INVALID, backtracking")
 			#print_board(board, "Current board state:")
 			return None
 
 	# Move to next row if column finished
-	if (currentCol == numColumns):
+	if (currentColumn == numColumns):
 		#print(f"Validating row {currentRow}")
-		if (validateRow(board, currentRow, currentCol, specs)):
+		if (validateRow(board, currentRow, currentColumn, specs)):
 			#print(f"Row {currentRow} is VALID, moving to next row")
 			result = dfs(board, specs, currentRow + 1, 0, numRows, numColumns, startTime, lastPrint)
 			return result
@@ -60,232 +98,536 @@ def dfs(board, specs, currentRow, currentCol, numRows, numColumns, startTime, la
 			#print_board(board, "Current board state:")
 			return None
 
-	currentTile = board[currentRow][currentCol]
+	currentTile = board[currentRow][currentColumn]
 
 	# if the current tile is "R" or "B" it signals were at the end of the magnet, if "X" skip those tiles
 	if currentTile in ("R", "B", "X", "+", "-"):
-		result = dfs(board, specs, currentRow, currentCol + 1, numRows, numColumns, startTime, lastPrint)
+		result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 		return result
 
-	# See if horizontal magnet can exist
-	if (horizontalPlacementExists(currentTile, board, currentRow, currentCol, numRows, numColumns)):
+	# See if horizontal magnet can exist, columns differ rows are same
+	if (horizontalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
+		originalFirstCharge = board[currentRow][currentColumn]
+		originalSecondCharge = board[currentRow][currentColumn + 1]
+		numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
+		numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
+		numPositivesSecondColumn, numNegativesSecondColumn = columnChargeCount(board, numRows, currentColumn + 1)
+		firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
+		firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
+		secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn + 1, numRows)
 		# Try horizontal magnet in (+, -) orientation
-		if (placeable(board, currentRow, currentCol, "+", specs) and placeable(board, currentRow, currentCol + 1, "-", specs)):
-			board[currentRow][currentCol] = "+"
-			board[currentRow][currentCol + 1] = "-"
-			result = dfs(board, specs, currentRow, currentCol + 2, numRows, numColumns, startTime, lastPrint)
-			if (result):
-				return result
+		if placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "+", "-", specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn):
+			board[currentRow][currentColumn] = "+"
+			board[currentRow][currentColumn + 1] = "-"
+			numPositivesFirstRow += 1
+			numNegativesFirstRow += 1
+			numPositivesFirstColumn += 1
+			numNegativesSecondColumn += 1
+			firstRowRemainingHorizontalPositives -= 1
+			firstRowRemainingHorizontalNegatives -= 1
+			firstColumnRemainingHorizontalPositives -= 1
+			firstColumnRemainingHorizontalNegatives -= 1
+			secondColumnRemainingHorizontalPositives -= 1
+			secondColumnRemainingHorizontalNegatives -= 1
+			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+				result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
+				if (result):
+					return result
 
 			# Backtrack
-			board[currentRow][currentCol] = "L"
-			board[currentRow][currentCol + 1] = "R"
+			board[currentRow][currentColumn] = originalFirstCharge
+			board[currentRow][currentColumn + 1] = originalSecondCharge
+			numPositivesFirstRow -= 1
+			numNegativesFirstRow -= 1
+			numPositivesFirstColumn -= 1
+			numNegativesSecondColumn -= 1
+			firstRowRemainingHorizontalPositives += 1
+			firstRowRemainingHorizontalNegatives += 1
+			firstColumnRemainingHorizontalPositives += 1
+			firstColumnRemainingHorizontalNegatives += 1
+			secondColumnRemainingHorizontalPositives += 1
+			secondColumnRemainingHorizontalNegatives += 1
 
 		# Try horizontal magnet in (-, +) orientation
-		if (placeable(board, currentRow, currentCol, "-", specs) and placeable(board, currentRow, currentCol + 1, "+", specs)):
-			board[currentRow][currentCol] = "-"
-			board[currentRow][currentCol + 1] = "+"
-			result = dfs(board, specs, currentRow, currentCol + 2, numRows, numColumns, startTime, lastPrint)
+		if placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "-", "+", specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn):
+			board[currentRow][currentColumn] = "-"
+			board[currentRow][currentColumn + 1] = "+"
+			numPositivesFirstRow += 1
+			numNegativesFirstRow += 1
+			numNegativesFirstColumn += 1
+			numPositivesSecondColumn += 1
+			firstRowRemainingHorizontalPositives -= 1
+			firstRowRemainingHorizontalNegatives -= 1
+			firstColumnRemainingHorizontalPositives -= 1
+			firstColumnRemainingHorizontalNegatives -= 1
+			secondColumnRemainingHorizontalPositives -= 1
+			secondColumnRemainingHorizontalNegatives -= 1
+			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+				result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
+				if (result):
+					return result
+
+			# Backtrack
+			board[currentRow][currentColumn] = originalFirstCharge
+			board[currentRow][currentColumn + 1] = originalSecondCharge
+			numPositivesFirstRow -= 1
+			numNegativesFirstRow -= 1
+			numNegativesFirstColumn -= 1
+			numPositivesSecondColumn -= 1
+			firstRowRemainingHorizontalPositives += 1
+			firstRowRemainingHorizontalNegatives += 1
+			firstColumnRemainingHorizontalPositives += 1
+			firstColumnRemainingHorizontalNegatives += 1
+			secondColumnRemainingHorizontalPositives += 1
+			secondColumnRemainingHorizontalNegatives += 1
+
+		# Try skipping this magnet slot
+		board[currentRow][currentColumn] = "X"
+		board[currentRow][currentColumn + 1] = "X"
+		firstRowRemainingHorizontalPositives -= 1
+		firstRowRemainingHorizontalNegatives -= 1
+		firstColumnRemainingHorizontalPositives -= 1
+		firstColumnRemainingHorizontalNegatives -= 1
+		secondColumnRemainingHorizontalPositives -= 1
+		secondColumnRemainingHorizontalNegatives -= 1
+		if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+			result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
 			if (result):
 				return result
 
-			# Backtrack
-			board[currentRow][currentCol] = "L"
-			board[currentRow][currentCol + 1] = "R"
-
-		# Try skipping this magnet slot
-		board[currentRow][currentCol] = "X"
-		board[currentRow][currentCol + 1] = "X"
-		result = dfs(board, specs, currentRow, currentCol + 2, numRows, numColumns, startTime, lastPrint)
-		if (result):
-			return result
-
 		# Backtrack
-		board[currentRow][currentCol] = "L"
-		board[currentRow][currentCol + 1] = "R"
+		board[currentRow][currentColumn] = originalFirstCharge
+		board[currentRow][currentColumn + 1] = originalSecondCharge
+		firstRowRemainingHorizontalPositives += 1
+		firstRowRemainingHorizontalNegatives += 1
+		firstColumnRemainingHorizontalPositives += 1
+		firstColumnRemainingHorizontalNegatives += 1
+		secondColumnRemainingHorizontalPositives += 1
+		secondColumnRemainingHorizontalNegatives += 1
 
 		return None
 
-	# See if vertical magnet can exist
-	if (verticalPlacementExists(currentTile, board, currentRow, currentCol, numRows, numColumns)):
+	# See if vertical magnet can exist, rows differ columns are same
+	if (verticalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
+		originalFirstCharge = board[currentRow][currentColumn]
+		originalSecondCharge = board[currentRow + 1][currentColumn]
+		numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
+		numPositivesSecondRow, numNegativesSecondRow = rowChargeCount(board, currentRow + 1)
+		numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
+		firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
+		secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives = remainingInRow(board, currentRow + 1, numColumns)
+		firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
 		# Try vertical magnet in (+, -) orientation
-		if (placeable(board, currentRow, currentCol, "+", specs) and placeable(board, currentRow + 1, currentCol, "-", specs)):
-			board[currentRow][currentCol] = "+"
-			board[currentRow + 1][currentCol] = "-"
-			result = dfs(board, specs, currentRow, currentCol + 1, numRows, numColumns, startTime, lastPrint)
-			if (result):
-				return result
+		if placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "+", "-", specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0):
+			board[currentRow][currentColumn] = "+"
+			board[currentRow + 1][currentColumn] = "-"
+			numPositivesFirstRow += 1
+			numNegativesSecondRow += 1
+			numPositivesFirstColumn += 1
+			numNegativesFirstColumn += 1
+			firstRowRemainingVerticalPositives -= 1
+			firstRowRemainingVerticalNegatives -= 1
+			secondRowRemainingVerticalPositives -= 1
+			secondRowRemainingVerticalNegatives -= 1
+			firstColumnRemainingVerticalPositives -= 1
+			firstColumnRemainingVerticalNegatives -= 1
+			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+				result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
+				if (result):
+					return result
 
 			# Backtrack
-			board[currentRow][currentCol] = "T"
-			board[currentRow + 1][currentCol] = "B"
+			board[currentRow][currentColumn] = originalFirstCharge
+			board[currentRow + 1][currentColumn] = originalSecondCharge
+			numPositivesFirstRow -= 1
+			numNegativesSecondRow -= 1
+			numPositivesFirstColumn -= 1
+			numNegativesFirstColumn -= 1
+			firstRowRemainingVerticalPositives += 1
+			firstRowRemainingVerticalNegatives += 1
+			secondRowRemainingVerticalPositives += 1
+			secondRowRemainingVerticalNegatives += 1
+			firstColumnRemainingVerticalPositives += 1
+			firstColumnRemainingVerticalNegatives += 1
 
 		# Try vertical magnet in (-, +) orientation
-		if (placeable(board, currentRow, currentCol, "-", specs) and placeable(board, currentRow + 1, currentCol, "+", specs)):
-			board[currentRow][currentCol] = "-"
-			board[currentRow + 1][currentCol] = "+"
-			result = dfs(board, specs, currentRow, currentCol + 1, numRows, numColumns, startTime, lastPrint)
+		if placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "-", "+", specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0):
+			board[currentRow][currentColumn] = "-"
+			board[currentRow + 1][currentColumn] = "+"
+			numNegativesFirstRow += 1
+			numPositivesSecondRow += 1
+			numPositivesFirstColumn += 1
+			numNegativesFirstColumn += 1
+			firstRowRemainingVerticalPositives -= 1
+			firstRowRemainingVerticalNegatives -= 1
+			secondRowRemainingVerticalPositives -= 1
+			secondRowRemainingVerticalNegatives -= 1
+			firstColumnRemainingVerticalPositives -= 1
+			firstColumnRemainingVerticalNegatives -= 1
+			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+				result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
+				if (result):
+					return result
+
+			# Backtrack
+			board[currentRow][currentColumn] = originalFirstCharge
+			board[currentRow + 1][currentColumn] = originalSecondCharge
+			numNegativesFirstRow -= 1
+			numPositivesSecondRow -= 1
+			numPositivesFirstColumn -= 1
+			numNegativesFirstColumn -= 1
+			firstRowRemainingVerticalPositives += 1
+			firstRowRemainingVerticalNegatives += 1
+			secondRowRemainingVerticalPositives += 1
+			secondRowRemainingVerticalNegatives += 1
+			firstColumnRemainingVerticalPositives += 1
+			firstColumnRemainingVerticalNegatives += 1
+
+		# Try skipping this magnet slot
+		board[currentRow][currentColumn] = "X"
+		board[currentRow + 1][currentColumn] = "X"
+		firstRowRemainingVerticalPositives -= 1
+		firstRowRemainingVerticalNegatives -= 1
+		secondRowRemainingVerticalPositives -= 1
+		secondRowRemainingVerticalNegatives -= 1
+		firstColumnRemainingVerticalPositives -= 1
+		firstColumnRemainingVerticalNegatives -= 1
+		if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+			result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 			if (result):
 				return result
 
-			# Backtrack
-			board[currentRow][currentCol] = "T"
-			board[currentRow + 1][currentCol] = "B"
-
-		# Try skipping this magnet slot
-		board[currentRow][currentCol] = "X"
-		board[currentRow + 1][currentCol] = "X"
-		result = dfs(board, specs, currentRow, currentCol + 1, numRows, numColumns, startTime, lastPrint)
-		if (result):
-			return result
-
 		# Backtrack
-		board[currentRow][currentCol] = "T"
-		board[currentRow + 1][currentCol] = "B"
+		board[currentRow][currentColumn] = originalFirstCharge
+		board[currentRow + 1][currentColumn] = originalSecondCharge
+		firstRowRemainingVerticalPositives += 1
+		firstRowRemainingVerticalNegatives += 1
+		secondRowRemainingVerticalPositives += 1
+		secondRowRemainingVerticalNegatives += 1
+		firstColumnRemainingVerticalPositives += 1
+		firstColumnRemainingVerticalNegatives += 1
 
 		return None
 
 	# No valid placement found
 	return None
 
-
-def placeable(board, currentRow, currentCol, ch, specs): #ch is either + or - 
+#charge is either + or -
+def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn): 
 	left, right, top, bottom = specs
 	numRows = len(board)
 	numColumns = len(board[0])
-
 	#Zero Constraint Check
-	if (ch == "+" and left[currentRow] == 0):
+	if((firstCharge == "+" and left[firstRow] == 0) or (secondCharge == "+" and left[secondRow] == 0)):					#Row positive
 		return False
-	if (ch == "-" and right[currentRow] == 0):
+	if((firstCharge == "-" and right[firstRow] == 0) or (secondCharge == "-" and right[secondRow] == 0)):				#Row negative
 		return False
-	if (ch == "+" and top[currentCol] == 0):
+	if((firstCharge == "+" and top[firstColumn] == 0) or (secondCharge == "+" and top[secondColumn] == 0)):				#Column positive
 		return False
-	if (ch == "-" and bottom[currentCol] == 0):
+	if((firstCharge == "-" and bottom[firstColumn] == 0) or (secondCharge == "-" and bottom[secondColumn] == 0)):		#Column negative
 		return False
-	
-	# Checks if for same charges around the tile
-	if (((currentRow - 1 >= 0) and board[currentRow - 1][currentCol] == ch) or 				# checks if the tile above has same charge 
-		((currentCol - 1 >= 0) and board[currentRow][currentCol - 1] == ch) or 				# checks if the tile behind has same charge
-		((currentCol + 1 < numColumns) and board[currentRow][currentCol + 1] == ch) or			# checks if the tile on the right has same charge
-		((currentRow + 1 < numRows) and board[currentRow + 1][currentCol] == ch)):			# checks if the tile below has same charge
-		return False
-	
-	numChargeInRow = 0	
-	numChargeInCol = 0
 
-	# counts the number of times the tile to be placed appears in that row, it will iterate through that string's characters
-	for currentTile in board[currentRow]:
-		if (currentTile == ch):
-			numChargeInRow += 1
+	#Horizontal placement
+	if(firstRow == secondRow):
+		#Checks if charges around first charge is the same, rows same their columns differ
+		if (((firstRow - 1 >= 0) and board[firstRow - 1][firstColumn] == firstCharge) or 					#Checks if the tile above has same charge
+			((firstRow + 1 < numRows) and board[firstRow + 1][firstColumn] == firstCharge) or 				#Checks if the tile below has same charge
+			((firstColumn - 1 >= 0) and board[firstRow][firstColumn - 1 ] == firstCharge)):					#Checks if the tile left has same charge
+			return False
+		#Checks if charges around second charge is the same, rows same their columns differ
+		if (((firstRow - 1 >= 0) and board[firstRow - 1][secondColumn] == secondCharge) or 					#Checks if the tile above has same charge
+			((firstRow + 1 < numRows) and board[firstRow + 1][secondColumn] == secondCharge) or				#Checks if the tile below has same charge
+			((secondColumn + 1 < numColumns) and board[firstRow][secondColumn + 1 ] == secondCharge)):		#Checks if the tile right has same charge
+			return False
+		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same rows
+		if((firstCharge == "+" or secondCharge == "+") and left[firstRow] != -1 and numPositivesFirstRow >= left[firstRow]):					#Positive charge count over row constraint limit
+			return False
+		if((firstCharge == "-" or secondCharge == "-") and right[firstRow] != -1 and numNegativesFirstRow >= right[firstRow]):					#Negative charge count over row constraint limit
+			return False	
+		if(firstCharge == "+" and top[firstColumn] != -1 and numPositivesFirstColumn >= top[firstColumn]):										#Positive charge count over first column constraint limit
+			return False	
+		if(firstCharge == "-" and bottom[firstColumn] != -1 and numNegativesFirstColumn >= bottom[firstColumn]):								#Negative charge count over first column constraint limit
+			return False
+		if(secondCharge == "+" and top[secondColumn] != -1 and numPositivesSecondColumn >= top[secondColumn]):									#Positive charge count over second column constraint limit
+			return False	
+		if(secondCharge == "-" and bottom[secondColumn] != -1 and numNegativesSecondColumn >= bottom[secondColumn]):							#Negative charge count over second column constraint limit
+			return False
+	#Vertical placement
+	else:
+		#Checks if charges around first charge is the same, columns same their rows differ 
+		if (((firstColumn - 1 >= 0 ) and board[firstRow][firstColumn - 1 ] == firstCharge) or				#Checks if the tile left has same charge
+			((firstColumn + 1 < numColumns) and board[firstRow][firstColumn + 1] == firstCharge) or			#Checks if the tile right has same charge
+			((firstRow - 1 >= 0) and board[firstRow - 1][firstColumn] == firstCharge)):						#Checks if the tile above has same charge
+			return False
+		#Checks if charges around second charge is the same, columns same their rows differ 
+		if (((firstColumn - 1 >= 0 ) and board[secondRow][firstColumn - 1 ] == secondCharge) or				#Checks if the tile left has same charge
+			((firstColumn + 1 < numColumns) and board[secondRow][firstColumn + 1] == secondCharge) or		#Checks if the tile right has same charge
+			((secondRow + 1 < numRows) and board[secondRow + 1][firstColumn] == secondCharge)):				#Checks if the tile below has same charge
+			return False
+		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same columns
+		if(firstCharge == "+" and left[firstRow] != -1 and numPositivesFirstRow >= left[firstRow]):												#Positive charge count over first row constraint limit
+			return False
+		if(firstCharge == "-" and right[firstRow] != -1 and numNegativesFirstRow >= right[firstRow]):											#Negative charge count over first row constraint limit
+			return False	
+		if(secondCharge == "+" and left[secondRow] != -1 and numPositivesSecondRow >= left[secondRow]):											#Positive charge count over second row constraint limit
+			return False
+		if(secondCharge == "-" and right[secondRow] != -1 and numNegativesSecondRow >= right[secondRow]):										#Negative charge count over second row constraint limit
+			return False	
+		if((firstCharge == "+" or secondCharge == "+") and top[firstColumn] != -1 and numPositivesFirstColumn >= top[firstColumn]):				#Positive charge count over column constraint limit
+			return False	
+		if((firstCharge == "-" or secondCharge == "-") and bottom[firstColumn] != -1 and numNegativesFirstColumn >= bottom[firstColumn]):		#Negative charge count over column constraint limit
+			return False
 
-	# counts the number of times the tile to be placed appears in that column, it will iterate all tiles in that column by going down the row and staying at the same column
-	for tempRow in range(numRows):
-		if (board[tempRow][currentCol] == ch):
-			numChargeInCol += 1
-	
-	#When a constraint exits and were over the limit don't place
-	if (ch == "+"):
-		if(left[currentRow] != -1 and numChargeInRow >= left[currentRow]): 
-			return False
-		if(top[currentCol] != -1 and numChargeInCol >= top[currentCol]):
-			return False
-	
-	#When a constraint exits and were over the limit don't place
-	if (ch == "-"):
-		if(right[currentRow] != -1 and numChargeInRow >= right[currentRow]): 
-			return False
-		if(bottom[currentCol] != -1 and numChargeInCol >= bottom[currentCol]):
-			return False
-		
 	#Constraint can still be fulfilled in the row
 	return True 
 
-def forwardCheck(board, specs):
+def forwardCheck(firstRow, firstColumn, secondRow, secondColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives):
 	left, right, top, bottom = specs
-	numRows = len(board)
-	numColumns = len(board[0])
-	
-	#Row Constraints Left & Right 
-	for row in range(numRows):
-		numPlacedPositiveInRow = 0
-		numPlacedNegativeInRow = 0
-		numPossiblePositiveInRow = 0
-		numPossibleNegativeInRow = 0 
-		column = 0
-		while (column < numColumns):
-			tile = board[row][column]
-			if (tile == "+"):
-				numPlacedPositiveInRow += 1
-				column += 1
-			elif (tile == '-'):
-				numPlacedNegativeInRow += 1
-				column += 1
-			elif (tile == "L" and column + 1 < numColumns and board[row][column+1] == "R"):
-				numPossiblePositiveInRow += 1
-				numPossibleNegativeInRow += 1
-				column += 2
-			elif (tile == "T" and row + 1 < numRows and board[row+1][column] == "B"):
-				numPossiblePositiveInRow += 1
-				numPossibleNegativeInRow += 1
-				column += 1
-			elif (tile == "B" and row - 1 >= 0 and board[row-1][column] == "T"):
-				numPossiblePositiveInRow += 1
-				numPossibleNegativeInRow += 1
-				column += 1
-			else:
-				column += 1
-		#If the constraint exists & can't be statisfed (total < constraint limit)
-		if (left[row] != -1 and (numPlacedPositiveInRow + numPossiblePositiveInRow) < left[row]): 
-			#print(f"Row {row} failed left: placed={numPlacedPositiveInRow} possible={numPossiblePositiveInRow} constraint={left[row]}")
-			return False
-		#If the constraint exists & can't be statisfed (total < constraint limit)
-		if (right[row] != -1 and (numPlacedNegativeInRow + numPossibleNegativeInRow) < right[row]):
-			#print(f"Row {row} failed right: placed={numPlacedNegativeInRow} possible={numPossibleNegativeInRow} constraint={right[row]}")
-			return False
-		
-	#Column Constraints Top & Bottom
-	for column in range(numColumns):
-		numPlacedPositiveInColumn = 0
-		numPlacedNegativeInColumn = 0
-		numPossiblePositiveInColumn = 0
-		numPossibleNegativeInColumn = 0 
-		row = 0
-		while (row < numRows):
-			tile = board[row][column]
-			if (tile == "+"):
-				numPlacedPositiveInColumn += 1
-				row += 1
-			elif (tile == '-'):
-				numPlacedNegativeInColumn += 1
-				row += 1
-			elif (tile == "T" and row + 1 < numRows and board[row+1][column] == "B"):
-				numPossiblePositiveInColumn += 1
-				numPossibleNegativeInColumn += 1
-				row += 2
-			elif (tile == "L" and column + 1 < numColumns and board[row][column+1] == "R"):
-				numPossiblePositiveInColumn += 1
-				numPossibleNegativeInColumn += 1
-				row += 1
-			elif (tile == "R" and column > 0 and board[row][column-1] == "L"):
-				numPossiblePositiveInColumn += 1
-				numPossibleNegativeInColumn += 1
-				row += 1
-			else:
-				row += 1
-		#If the constraint exists & can't be statisfed (total < constraint limit) explore using > 0 instead of -1 if trouble still exist later
-		if (top[column] != -1 and (numPlacedPositiveInColumn + numPossiblePositiveInColumn) < top[column]):
-			#print(f"Column {column} failed top: placed={numPlacedNegativeInColumn} possible={numPossiblePositiveInColumn} constraint={bottom[column]}")
-			return False
-		#If the constraint exists & can't be statisfed (total < constraint limit)
-		if (bottom[column] != -1 and (numPlacedNegativeInColumn + numPossibleNegativeInColumn) < bottom[column]):
-			#print(f"Column {column} failed bottom: placed={numPlacedNegativeInColumn} possible={numPossiblePositiveInColumn} constraint={bottom[column]}")
-			return False
-		
+	#Horizontal placement, columns differ rows are same
+	if(firstRow == secondRow):
+		#Row 
+		if(left[firstRow] > 0 and right[firstRow] > 0):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < left[firstRow] or (numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] > 0 and right[firstRow] == - 1):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < left[firstRow]):
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] > 0):
+			if((numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] > 0 and right[firstRow] == 0):
+			if((numPositivesFirstRow + firstRowRemainingVerticalPositives) < left[firstRow]):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] > 0):
+			if((numNegativesFirstRow + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] == - 1):
+			if(numPositivesFirstRow > left[firstRow]):
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] == 0):
+			if(numNegativesFirstRow > right[firstRow]): 
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] == - 1):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < 0 and (numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < 0):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] == 0):
+			if(numPositivesFirstRow > 0 or numNegativesFirstRow > 0):
+				return False
+		#Column one
+		if(top[firstColumn] > 0 and bottom[firstColumn] > 0):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < top[firstColumn] or (numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] > 0 and bottom[firstColumn] == - 1):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < top[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] > 0):
+			if((numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] > 0 and bottom[firstColumn] == 0):
+			if((numPositivesFirstColumn + firstColumnRemainingHorizontalPositives) < top[firstColumn]):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] > 0):
+			if((numNegativesFirstColumn + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] == - 1):
+			if(numPositivesFirstColumn > top[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] == 0):
+			if(numNegativesFirstColumn > bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] == - 1):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < 0 and (numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < 0):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] == 0):
+			if(numPositivesFirstColumn > 0 or numNegativesFirstColumn > 0):
+				return False
+		#Column two
+		if(top[secondColumn] > 0 and bottom[secondColumn] > 0):
+			if((numPositivesSecondColumn + secondColumnRemainingVerticalPositives + secondColumnRemainingHorizontalPositives) < top[secondColumn] or (numNegativesSecondColumn + secondColumnRemainingVerticalNegatives + secondColumnRemainingHorizontalNegatives) < bottom[secondColumn]):
+				return False
+		elif(top[secondColumn] > 0 and bottom[secondColumn] == - 1):
+			if((numPositivesSecondColumn + secondColumnRemainingVerticalPositives + secondColumnRemainingHorizontalPositives) < top[secondColumn]):
+				return False
+		elif(top[secondColumn] == - 1 and bottom[secondColumn] > 0):
+			if((numNegativesSecondColumn + secondColumnRemainingVerticalNegatives + secondColumnRemainingHorizontalNegatives) < bottom[secondColumn]):
+				return False
+		elif(top[secondColumn] > 0 and bottom[secondColumn] == 0):
+			if((numPositivesSecondColumn + secondColumnRemainingHorizontalPositives) < top[secondColumn]):
+				return False
+		elif(top[secondColumn] == 0 and bottom[secondColumn] > 0):
+			if((numNegativesSecondColumn + secondColumnRemainingHorizontalNegatives) < bottom[secondColumn]):
+				return False
+		elif(top[secondColumn] == 0 and bottom[secondColumn] == - 1):
+			if(numPositivesSecondColumn > top[secondColumn]):
+				return False
+		elif(top[secondColumn] == - 1 and bottom[secondColumn] == 0):
+			if(numNegativesSecondColumn > bottom[secondColumn]):
+				return False
+		elif(top[secondColumn] == - 1 and bottom[secondColumn] == - 1):
+			if((numPositivesSecondColumn + secondColumnRemainingVerticalPositives + secondColumnRemainingHorizontalPositives) < 0 and (numNegativesSecondColumn + secondColumnRemainingVerticalNegatives + secondColumnRemainingHorizontalNegatives) < 0):
+				return False
+		elif(top[secondColumn] == 0 and bottom[secondColumn] == 0):
+			if(numPositivesSecondColumn > 0 or numNegativesSecondColumn > 0):
+				return False
+	#Vertical placement, rows differ columns are same
+	else:		
+		#Column
+		if(top[firstColumn] > 0 and bottom[firstColumn] > 0):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < top[firstColumn] or (numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] > 0 and bottom[firstColumn] == - 1):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < top[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] > 0):
+			if((numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] > 0 and bottom[firstColumn] == 0):
+			if((numPositivesFirstColumn + firstColumnRemainingHorizontalPositives) < top[firstColumn]):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] > 0):
+			if((numNegativesFirstColumn + firstColumnRemainingHorizontalNegatives) < bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] == - 1):
+			if(numPositivesFirstColumn > top[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] == 0):
+			if(numNegativesFirstColumn > bottom[firstColumn]):
+				return False
+		elif(top[firstColumn] == - 1 and bottom[firstColumn] == - 1):
+			if((numPositivesFirstColumn + firstColumnRemainingVerticalPositives + firstColumnRemainingHorizontalPositives) < 0 and (numNegativesFirstColumn + firstColumnRemainingVerticalNegatives + firstColumnRemainingHorizontalNegatives) < 0):
+				return False
+		elif(top[firstColumn] == 0 and bottom[firstColumn] == 0):
+			if(numPositivesFirstColumn > 0 or numNegativesFirstColumn > 0):
+				return False
+		#Row one
+		if(left[firstRow] > 0 and right[firstRow] > 0):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < left[firstRow] or (numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] > 0 and right[firstRow] == - 1):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < left[firstRow]):
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] > 0):
+			if((numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] > 0 and right[firstRow] == 0):
+			if((numPositivesFirstRow + firstRowRemainingVerticalPositives) < left[firstRow]):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] > 0):
+			if((numNegativesFirstRow + firstRowRemainingVerticalNegatives) < right[firstRow]):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] == - 1):
+			if(numPositivesFirstRow > left[firstRow]):
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] == 0):
+			if(numNegativesFirstRow > right[firstRow]): 
+				return False
+		elif(left[firstRow] == - 1 and right[firstRow] == - 1):
+			if((numPositivesFirstRow + firstRowRemainingHorizontalPositives + firstRowRemainingVerticalPositives) < 0 and (numNegativesFirstRow + firstRowRemainingHorizontalNegatives + firstRowRemainingVerticalNegatives) < 0):
+				return False
+		elif(left[firstRow] == 0 and right[firstRow] == 0):
+			if(numPositivesFirstRow > 0 or numNegativesFirstRow > 0):
+				return False
+		#Row two
+		if(left[secondRow] > 0 and right[secondRow] > 0):
+			if((numPositivesSecondRow + secondRowRemainingHorizontalPositives + secondRowRemainingVerticalPositives) < left[secondRow] or (numNegativesSecondRow + secondRowRemainingHorizontalNegatives + secondRowRemainingVerticalNegatives) < right[secondRow]):
+				return False
+		elif(left[secondRow] > 0 and right[secondRow] == - 1):
+			if((numPositivesSecondRow + secondRowRemainingHorizontalPositives + secondRowRemainingVerticalPositives) < left[secondRow]):
+				return False
+		elif(left[secondRow] == - 1 and right[secondRow] > 0):
+			if((numNegativesSecondRow + secondRowRemainingHorizontalNegatives + secondRowRemainingVerticalNegatives) < right[secondRow]):
+				return False
+		elif(left[secondRow] > 0 and right[secondRow] == 0):
+			if((numPositivesSecondRow + secondRowRemainingVerticalPositives) < left[secondRow]):
+				return False
+		elif(left[secondRow] == 0 and right[secondRow] > 0):
+			if((numNegativesSecondRow + secondRowRemainingVerticalNegatives) < right[secondRow]):
+				return False
+		elif(left[secondRow] == 0 and right[secondRow] == - 1):
+			if(numPositivesSecondRow > left[secondRow]):
+				return False
+		elif(left[secondRow] == - 1 and right[secondRow] == 0):
+			if(numNegativesSecondRow > right[secondRow]): 
+				return False
+		elif(left[secondRow] == - 1 and right[secondRow] == - 1):
+			if((numPositivesSecondRow + secondRowRemainingHorizontalPositives + secondRowRemainingVerticalPositives) < 0 and (numNegativesSecondRow + secondRowRemainingHorizontalNegatives + secondRowRemainingVerticalNegatives) < 0):
+				return False
+		elif(left[secondRow] == 0 and right[secondRow] == 0):
+			if(numPositivesSecondRow > 0 or numNegativesSecondRow > 0):
+				return False
+			
 	return True
 
 
-def validateRow(board, currentRow, currentCol, specs):
+def rowChargeCount(board, currentRow):
+	numPositivesInRow = 0
+	numNegativesInRow = 0
+
+	#Count # of times + or - in row
+	for currentTile in board[currentRow]:
+		if (currentTile == "+"):
+			numPositivesInRow += 1
+		elif (currentTile == "-"):
+			numNegativesInRow += 1  
+	return numPositivesInRow, numNegativesInRow
+
+def columnChargeCount(board, numRows, currentColumn):
+	numPositivesInColumn = 0
+	numNegativesInColumn = 0
+
+	#Count # of times + or - in column
+	for currentRowIndex in range(numRows):
+		if (board[currentRowIndex][currentColumn] ==  "+"):
+			numPositivesInColumn += 1
+		elif (board[currentRowIndex][currentColumn] ==  "-"):
+			numNegativesInColumn += 1	
+	return numPositivesInColumn, numNegativesInColumn
+
+
+def remainingInRow(board, currentRow, numColumns):
+	rowRemainingHorizontalPositives = 0
+	rowRemainingHorizontalNegatives = 0
+	rowRemainingVerticalPositives = 0
+	rowRemainingVerticalNegatives = 0
+	currentColumn = 0
+	while(currentColumn < numColumns):
+		currentTile = board[currentRow][currentColumn]
+		if(currentTile == "L" and board[currentRow][currentColumn + 1] == "R"):
+			rowRemainingHorizontalPositives += 1
+			rowRemainingHorizontalNegatives += 1
+			currentColumn += 2
+		elif(currentTile == "T" or currentTile == "B"):
+			rowRemainingVerticalPositives += 1
+			rowRemainingVerticalNegatives += 1
+			currentColumn += 1
+		#+, -, X tiles
+		else:
+			currentColumn += 1
+	return rowRemainingHorizontalPositives, rowRemainingHorizontalNegatives, rowRemainingVerticalPositives, rowRemainingVerticalNegatives
+
+def remainingInColumn(board, currentColumn, numRows):
+	columnRemainingHorizontalPositives = 0
+	columnRemainingHorizontalNegatives = 0
+	columnRemainingVerticalPositives = 0
+	columnRemainingVerticalNegatives = 0
+	currentRow = 0
+	while(currentRow < numRows):
+		currentTile = board[currentRow][currentColumn]
+		if(currentTile == "T" and board[currentRow + 1][currentColumn] == "B"):
+			columnRemainingVerticalPositives += 1
+			columnRemainingVerticalNegatives += 1
+			currentRow += 2
+		elif(currentTile == "L" or currentTile == "R"):
+			columnRemainingHorizontalPositives += 1
+			columnRemainingHorizontalNegatives += 1
+			currentRow += 1
+		#+, -, X tiles
+		else:
+			currentRow += 1
+	return columnRemainingVerticalPositives, columnRemainingVerticalNegatives, columnRemainingHorizontalPositives, columnRemainingHorizontalNegatives
+
+
+def validateRow(board, currentRow, currentColumn, specs):
 	left, right, top, bottom = specs
 	positiveRowCount = 0
 	negativeRowCount = 0
@@ -304,7 +646,7 @@ def validateRow(board, currentRow, currentCol, specs):
 	return (positiveMet and negativeMet)
 
 
-def validateCol(board, currentRow, currentCol, specs):
+def validateColumn(board, currentRow, currentColumn, specs):
 	left, right, top, bottom = specs
 	positiveRowCount = 0
 	negativeRowCount = 0
@@ -313,26 +655,26 @@ def validateCol(board, currentRow, currentCol, specs):
 
 	#Count # of times + or - in column
 	for currentRowIndex in range(numRows):
-		if (board[currentRowIndex][currentCol] ==  "+"):
+		if (board[currentRowIndex][currentColumn] ==  "+"):
 			positiveRowCount += 1
-		if (board[currentRowIndex][currentCol] ==  "-"):
+		if (board[currentRowIndex][currentColumn] ==  "-"):
 			negativeRowCount += 1	
 
 	#No constraint limits = -1 and constraints are met when the counts are the same, constraints can either exist in a realm of numbers either -1 or >= 0
-	positiveMet = (positiveRowCount == top[currentCol] or top[currentCol] == -1)
-	negativeMet = (negativeRowCount == bottom[currentCol] or bottom[currentCol] == -1)
+	positiveMet = (positiveRowCount == top[currentColumn] or top[currentColumn] == -1)
+	negativeMet = (negativeRowCount == bottom[currentColumn] or bottom[currentColumn] == -1)
 
 	return (positiveMet and negativeMet)
 
 
-def horizontalPlacementExists(currentTile, board, currentRow, currentCol, numRows, numColumns):
-	if ((currentCol + 1 < numColumns) and currentTile == "L" and board[currentRow][currentCol+1] == "R"):
+def horizontalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns):
+	if ((currentColumn + 1 < numColumns) and currentTile == "L" and board[currentRow][currentColumn+1] == "R"):
 		return True
 	else:
 		return False
 	
-def verticalPlacementExists(currentTile, board, currentRow, currentCol, numRows, numColumns):
-	if ((currentRow + 1 < numRows) and currentTile == "T" and board[currentRow + 1][currentCol] == "B"):
+def verticalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns):
+	if ((currentRow + 1 < numRows) and currentTile == "T" and board[currentRow + 1][currentColumn] == "B"):
 		return True
 	else:
 		return False
@@ -344,14 +686,16 @@ def preZeroConstraintCheck(board, specs):
 	numColumns = len(board[0])
 
 	for currentRow in range(numRows):
-		if (left[currentRow] == 0 and right[currentRow] == 0):
-			board[currentRow] = ["X"] * numColumns
-
-	for currentCol in range(numColumns):
-		if (top[currentCol] == 0 and bottom[currentCol] == 0):
-			for currentRow in range(numRows):
-				board[currentRow][currentCol] = "X"
-		
+		for currentColumn in range(numColumns):
+			currentTile = board[currentRow][currentColumn]
+			if ((currentTile == "L" or currentTile == "R") and (left[currentRow] == 0 or right[currentRow] == 0)):
+				board[currentRow][currentColumn] = "X"
+			if ((currentTile == "T" or currentTile == "B") and (top[currentColumn] == 0 or bottom[currentColumn] == 0)):
+				board[currentRow][currentColumn] = "X"
+			#if ((currentTile == "L" or currentTile == "R") and (top[currentColumn] == 0 or bottom[currentColumn] == 0)):
+				#board[currentRow][currentColumn] = "X"
+			#if ((currentTile == "T" or currentTile == "B") and (left[currentRow] == 0 or right[currentRow] == 0)):
+				#board[currentRow][currentColumn] = "X"
 	return board
 
 
@@ -625,10 +969,10 @@ def main():
 	#for currentRow in range(numRows):
 		#board9[currentRow] = ["X" if left[currentRow] == 0 or right[currentRow] == 0 else i for i in board9[currentRow]]
 
-	#for currentCol in range(numColumns):
-		#if(top[currentCol] == 0 or bottom[currentCol] == 0):
+	#for currentColumn in range(numColumns):
+		#if(top[currentColumn] == 0 or bottom[currentColumn] == 0):
 			#for currentRow in range(numRows):
-				#board9[currentRow][currentCol] = "X"
+				#board9[currentRow][currentColumn] = "X"
 
 	#print_board(board9, "chickenwong")
 	result9 = solve(board9, specs9)
@@ -639,18 +983,5 @@ if __name__ == "__main__":
     main()
 
 
-"""
-	# Checks if charges around first charge is the same
-	if (((firstRow - 1 >= 0) and board[firstRow - 1][firstColumn] == firstCharge) or 					# checks if the tile above has same charge
-		((firstColumn - 1 >= 0 ) and board[firstRow][firstColumn - 1 ] == firstCharge) or				# checks if the tile behind has same charge
-		((firstColumn + 1 < numColumns) and board[firstRow][firstColumn + 1] == firstCharge) or			# checks if the tile on the right has same charge
-		((firstRow + 1 < numRows) and board[firstRow + 1][firstColumn] == firstCharge)):				# checks if the tile below has same charge
-		return False
 
-	# Checks if charges around second charge is the same
-	if (((secondRow - 1 >= 0) and board[secondRow - 1][secondColumn] == secondCharge) or 				# checks if the tile above has same charge
-		((secondColumn - 1 >= 0 ) and board[secondRow][secondColumn - 1 ] == secondCharge) or			# checks if the tile behind has same charge
-		((secondColumn + 1 < numColumns) and board[secondRow][secondColumn + 1] == secondCharge) or		# checks if the tile on the right has same charge
-		((secondRow + 1 < numRows) and board[secondRow + 1][secondColumn] == secondCharge)):			# checks if the tile below has same charge
-		return False
-"""
+
