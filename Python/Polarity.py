@@ -14,6 +14,20 @@ def solve(board, specs):
 	startTime = time.time()
 	lastPrint = [startTime]
 	#Tile trackers
+	global rowPositives											#(+)
+	global rowNegatives 										#(-)
+	global columnPositives 										#(+)
+	global columnNegatives 										#(-)
+	global rowRemainingHorizontalPositives						#(L, R)
+	global rowRemainingHorizontalNegatives 						#(L, R)	
+	global rowRemainingVerticalPositives 						#(T, B)
+	global rowRemainingVerticalNegatives 						#(T, B)
+	global columnRemainingVerticalPositives						#(T, B)
+	global columnRemainingVerticalNegatives						#(T, B)
+	global columnRemainingHorizontalPositives 					#(L, R)	
+	global columnRemainingHorizontalNegatives 					#(L, R)	
+	global rowNumX												#(X, X)				
+	global columnNumX											#(X. X)
 	rowPositives = [0] * numRows								#(+)
 	rowNegatives = [0] * numRows								#(-)
 	columnPositives = [0] * numColumns							#(+)
@@ -51,12 +65,12 @@ def solve(board, specs):
 			#Vertical placement, rows differ columns same
 			elif((currentTile == "T") and (currentRow + 1 < numRows) and (board[currentRow + 1][currentColumn] == "B")):
 				#Dealing with 2 tiles at once since merged 4 functions can't rely on doing 1 by 1
-				columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
-				columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
 				rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
 				rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
 				rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
 				rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+				columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+				columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
 			#X
 			elif(currentTile == "X"):
 				rowNumX[currentRow] += 1
@@ -67,7 +81,7 @@ def solve(board, specs):
 
 def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime, lastPrint):
 	
-	if (currentRow == numRows and currentColumn == numColumns):
+	if(currentRow == numRows and currentColumn == numColumns):
 		if (validateConfiguration(board, specs)):
 			print("SOLUTION FOUND!")
 			return  [row[:] for row in board]
@@ -75,7 +89,7 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			return None
 
 	# Validate columns after all rows are filled
-	if (currentRow == numRows):
+	if(currentRow == numRows):
 		#print(f"Validating column {currentColumn}")
 		if (validateColumn(board, currentRow, currentColumn, specs)):
 			#print(f"Col {currentColumn} is VALID, moving to next column")
@@ -87,7 +101,7 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			return None
 
 	# Move to next row if column finished
-	if (currentColumn == numColumns):
+	if(currentColumn == numColumns):
 		#print(f"Validating row {currentRow}")
 		if (validateRow(board, currentRow, currentColumn, specs)):
 			#print(f"Row {currentRow} is VALID, moving to next row")
@@ -106,30 +120,40 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 		return result
 
 	# See if horizontal magnet can exist, columns differ rows are same
-	if (horizontalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
+	if(horizontalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
 		originalFirstCharge = board[currentRow][currentColumn]
 		originalSecondCharge = board[currentRow][currentColumn + 1]
-		numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
-		numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
-		numPositivesSecondColumn, numNegativesSecondColumn = columnChargeCount(board, numRows, currentColumn + 1)
-		firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
-		firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
-		secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn + 1, numRows)
+		#numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
+		#numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
+		#numPositivesSecondColumn, numNegativesSecondColumn = columnChargeCount(board, numRows, currentColumn + 1)
+		#firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
+		#firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
+		#secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn + 1, numRows)
 		# Try horizontal magnet in (+, -) orientation
-		if placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "+", "-", specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn):
+		if(placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "+", "-", specs, rowPositives[currentRow], rowNegatives[currentRow], 0, 0, columnPositives[currentColumn], columnNegatives[currentColumn], columnPositives[currentColumn + 1], columnNegatives[currentColumn + 1])):
 			board[currentRow][currentColumn] = "+"
 			board[currentRow][currentColumn + 1] = "-"
-			numPositivesFirstRow += 1
-			numNegativesFirstRow += 1
-			numPositivesFirstColumn += 1
-			numNegativesSecondColumn += 1
-			firstRowRemainingHorizontalPositives -= 1
-			firstRowRemainingHorizontalNegatives -= 1
-			firstColumnRemainingHorizontalPositives -= 1
-			firstColumnRemainingHorizontalNegatives -= 1
-			secondColumnRemainingHorizontalPositives -= 1
-			secondColumnRemainingHorizontalNegatives -= 1
-			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+			#numPositivesFirstRow += 1
+			#numNegativesFirstRow += 1
+			#numPositivesFirstColumn += 1
+			#numNegativesSecondColumn += 1
+			rowPositives[currentRow] += 1
+			rowNegatives[currentRow] += 1
+			columnPositives[currentColumn] += 1
+			columnNegatives[currentColumn + 1] += 1
+			#firstRowRemainingHorizontalPositives -= 1
+			#firstRowRemainingHorizontalNegatives -= 1
+			#firstColumnRemainingHorizontalPositives -= 1
+			#firstColumnRemainingHorizontalNegatives -= 1
+			#secondColumnRemainingHorizontalPositives -= 1
+			#secondColumnRemainingHorizontalNegatives -= 1
+			rowRemainingHorizontalPositives[currentRow] -= 1					#(L, R)
+			rowRemainingHorizontalNegatives[currentRow] -= 1					#(L, R)
+			columnRemainingHorizontalPositives[currentColumn] -= 1				#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn] -= 1				#(L, R)
+			columnRemainingHorizontalPositives[currentColumn + 1] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn + 1] -= 1			#(L, R)	
+			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, rowPositives[currentRow], rowNegatives[currentRow], 0, 0, columnPositives[currentColumn], columnNegatives[currentColumn], columnPositives[currentColumn + 1], columnNegatives[currentColumn + 1], rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], 0, 0, 0, 0, columnRemainingVerticalPositives[currentColumn + 1], columnRemainingVerticalNegatives[currentColumn + 1], columnRemainingHorizontalPositives[currentColumn + 1], columnRemainingHorizontalNegatives[currentColumn + 1])):
 				result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
 				if (result):
 					return result
@@ -137,32 +161,51 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			# Backtrack
 			board[currentRow][currentColumn] = originalFirstCharge
 			board[currentRow][currentColumn + 1] = originalSecondCharge
-			numPositivesFirstRow -= 1
-			numNegativesFirstRow -= 1
-			numPositivesFirstColumn -= 1
-			numNegativesSecondColumn -= 1
-			firstRowRemainingHorizontalPositives += 1
-			firstRowRemainingHorizontalNegatives += 1
-			firstColumnRemainingHorizontalPositives += 1
-			firstColumnRemainingHorizontalNegatives += 1
-			secondColumnRemainingHorizontalPositives += 1
-			secondColumnRemainingHorizontalNegatives += 1
-
+			#numPositivesFirstRow -= 1
+			#numNegativesFirstRow -= 1
+			#numPositivesFirstColumn -= 1
+			#numNegativesSecondColumn -= 1
+			rowPositives[currentRow] -= 1
+			rowNegatives[currentRow] -= 1
+			columnPositives[currentColumn] -= 1
+			columnNegatives[currentColumn + 1] -= 1
+			#firstRowRemainingHorizontalPositives += 1
+			#firstRowRemainingHorizontalNegatives += 1
+			#firstColumnRemainingHorizontalPositives += 1
+			#firstColumnRemainingHorizontalNegatives += 1
+			#secondColumnRemainingHorizontalPositives += 1
+			#secondColumnRemainingHorizontalNegatives += 1
+			rowRemainingHorizontalPositives[currentRow] += 1					#(L, R)
+			rowRemainingHorizontalNegatives[currentRow] += 1					#(L, R)
+			columnRemainingHorizontalPositives[currentColumn] += 1				#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn] += 1				#(L, R)
+			columnRemainingHorizontalPositives[currentColumn + 1] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn + 1] += 1			#(L, R)
 		# Try horizontal magnet in (-, +) orientation
-		if placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "-", "+", specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn):
+		if(placeable(board, currentRow, currentColumn, currentRow, currentColumn + 1, "-", "+", specs, rowPositives[currentRow], rowNegatives[currentRow], 0, 0, columnPositives[currentColumn], columnNegatives[currentColumn], columnPositives[currentColumn + 1], columnNegatives[currentColumn + 1])):
 			board[currentRow][currentColumn] = "-"
 			board[currentRow][currentColumn + 1] = "+"
-			numPositivesFirstRow += 1
-			numNegativesFirstRow += 1
-			numNegativesFirstColumn += 1
-			numPositivesSecondColumn += 1
-			firstRowRemainingHorizontalPositives -= 1
-			firstRowRemainingHorizontalNegatives -= 1
-			firstColumnRemainingHorizontalPositives -= 1
-			firstColumnRemainingHorizontalNegatives -= 1
-			secondColumnRemainingHorizontalPositives -= 1
-			secondColumnRemainingHorizontalNegatives -= 1
-			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+			#numPositivesFirstRow += 1
+			#numNegativesFirstRow += 1
+			#numNegativesFirstColumn += 1
+			#numPositivesSecondColumn += 1
+			rowPositives[currentRow] += 1
+			rowNegatives[currentRow] += 1
+			columnNegatives[currentColumn] += 1
+			columnPositives[currentColumn + 1] += 1
+			#firstRowRemainingHorizontalPositives -= 1
+			#firstRowRemainingHorizontalNegatives -= 1
+			#firstColumnRemainingHorizontalPositives -= 1
+			#firstColumnRemainingHorizontalNegatives -= 1
+			#secondColumnRemainingHorizontalPositives -= 1
+			#secondColumnRemainingHorizontalNegatives -= 1
+			rowRemainingHorizontalPositives[currentRow] -= 1					#(L, R)
+			rowRemainingHorizontalNegatives[currentRow] -= 1					#(L, R)
+			columnRemainingHorizontalPositives[currentColumn] -= 1				#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn] -= 1				#(L, R)
+			columnRemainingHorizontalPositives[currentColumn + 1] -= 1			#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn + 1] -= 1			#(L, R)	
+			if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, rowPositives[currentRow], rowNegatives[currentRow], 0, 0, columnPositives[currentColumn], columnNegatives[currentColumn], columnPositives[currentColumn + 1], columnNegatives[currentColumn + 1], rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], 0, 0, 0, 0, columnRemainingVerticalPositives[currentColumn + 1], columnRemainingVerticalNegatives[currentColumn + 1], columnRemainingHorizontalPositives[currentColumn + 1], columnRemainingHorizontalNegatives[currentColumn + 1])):
 				result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
 				if (result):
 					return result
@@ -170,68 +213,100 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			# Backtrack
 			board[currentRow][currentColumn] = originalFirstCharge
 			board[currentRow][currentColumn + 1] = originalSecondCharge
-			numPositivesFirstRow -= 1
-			numNegativesFirstRow -= 1
-			numNegativesFirstColumn -= 1
-			numPositivesSecondColumn -= 1
-			firstRowRemainingHorizontalPositives += 1
-			firstRowRemainingHorizontalNegatives += 1
-			firstColumnRemainingHorizontalPositives += 1
-			firstColumnRemainingHorizontalNegatives += 1
-			secondColumnRemainingHorizontalPositives += 1
-			secondColumnRemainingHorizontalNegatives += 1
+			#numPositivesFirstRow -= 1
+			#numNegativesFirstRow -= 1
+			#numNegativesFirstColumn -= 1
+			#numPositivesSecondColumn -= 1
+			rowPositives[currentRow] -= 1
+			rowNegatives[currentRow] -= 1
+			columnNegatives[currentColumn] -= 1
+			columnPositives[currentColumn + 1] -= 1
+			#firstRowRemainingHorizontalPositives += 1
+			#firstRowRemainingHorizontalNegatives += 1
+			#firstColumnRemainingHorizontalPositives += 1
+			#firstColumnRemainingHorizontalNegatives += 1
+			#secondColumnRemainingHorizontalPositives += 1
+			#secondColumnRemainingHorizontalNegatives += 1
+			rowRemainingHorizontalPositives[currentRow] += 1					#(L, R)
+			rowRemainingHorizontalNegatives[currentRow] += 1					#(L, R)
+			columnRemainingHorizontalPositives[currentColumn] += 1				#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn] += 1				#(L, R)
+			columnRemainingHorizontalPositives[currentColumn + 1] += 1			#(L, R)
+			columnRemainingHorizontalNegatives[currentColumn + 1] += 1			#(L, R)
 
 		# Try skipping this magnet slot
 		board[currentRow][currentColumn] = "X"
 		board[currentRow][currentColumn + 1] = "X"
-		firstRowRemainingHorizontalPositives -= 1
-		firstRowRemainingHorizontalNegatives -= 1
-		firstColumnRemainingHorizontalPositives -= 1
-		firstColumnRemainingHorizontalNegatives -= 1
-		secondColumnRemainingHorizontalPositives -= 1
-		secondColumnRemainingHorizontalNegatives -= 1
-		if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, numPositivesFirstRow, numNegativesFirstRow, 0, 0, numPositivesFirstColumn, numNegativesFirstColumn, numPositivesSecondColumn, numNegativesSecondColumn, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, 0, 0, 0, 0, secondColumnRemainingVerticalPositives, secondColumnRemainingVerticalNegatives, secondColumnRemainingHorizontalPositives, secondColumnRemainingHorizontalNegatives)):
+		#firstRowRemainingHorizontalPositives -= 1
+		#firstRowRemainingHorizontalNegatives -= 1
+		#firstColumnRemainingHorizontalPositives -= 1
+		#firstColumnRemainingHorizontalNegatives -= 1
+		#secondColumnRemainingHorizontalPositives -= 1
+		#secondColumnRemainingHorizontalNegatives -= 1
+		rowRemainingHorizontalPositives[currentRow] -= 1					#(L, R)
+		rowRemainingHorizontalNegatives[currentRow] -= 1					#(L, R)
+		columnRemainingHorizontalPositives[currentColumn] -= 1				#(L, R)
+		columnRemainingHorizontalNegatives[currentColumn] -= 1				#(L, R)
+		columnRemainingHorizontalPositives[currentColumn + 1] -= 1			#(L, R)
+		columnRemainingHorizontalNegatives[currentColumn + 1] -= 1			#(L, R)	
+		if(forwardCheck(currentRow, currentColumn, currentRow, currentColumn + 1, specs, rowPositives[currentRow], rowNegatives[currentRow], 0, 0, columnPositives[currentColumn], columnNegatives[currentColumn], columnPositives[currentColumn + 1], columnNegatives[currentColumn + 1], rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], 0, 0, 0, 0, columnRemainingVerticalPositives[currentColumn + 1], columnRemainingVerticalNegatives[currentColumn + 1], columnRemainingHorizontalPositives[currentColumn + 1], columnRemainingHorizontalNegatives[currentColumn + 1])):
 			result = dfs(board, specs, currentRow, currentColumn + 2, numRows, numColumns, startTime, lastPrint)
-			if (result):
+			if(result):
 				return result
 
 		# Backtrack
 		board[currentRow][currentColumn] = originalFirstCharge
 		board[currentRow][currentColumn + 1] = originalSecondCharge
-		firstRowRemainingHorizontalPositives += 1
-		firstRowRemainingHorizontalNegatives += 1
-		firstColumnRemainingHorizontalPositives += 1
-		firstColumnRemainingHorizontalNegatives += 1
-		secondColumnRemainingHorizontalPositives += 1
-		secondColumnRemainingHorizontalNegatives += 1
+		#firstRowRemainingHorizontalPositives += 1
+		#firstRowRemainingHorizontalNegatives += 1
+		#firstColumnRemainingHorizontalPositives += 1
+		#firstColumnRemainingHorizontalNegatives += 1
+		#secondColumnRemainingHorizontalPositives += 1
+		#secondColumnRemainingHorizontalNegatives += 1
+		rowRemainingHorizontalPositives[currentRow] += 1					#(L, R)
+		rowRemainingHorizontalNegatives[currentRow] += 1					#(L, R)
+		columnRemainingHorizontalPositives[currentColumn] += 1				#(L, R)
+		columnRemainingHorizontalNegatives[currentColumn] += 1				#(L, R)
+		columnRemainingHorizontalPositives[currentColumn + 1] += 1			#(L, R)
+		columnRemainingHorizontalNegatives[currentColumn + 1] += 1			#(L, R)
 
 		return None
 
 	# See if vertical magnet can exist, rows differ columns are same
-	if (verticalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
+	if(verticalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns)):
 		originalFirstCharge = board[currentRow][currentColumn]
 		originalSecondCharge = board[currentRow + 1][currentColumn]
-		numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
-		numPositivesSecondRow, numNegativesSecondRow = rowChargeCount(board, currentRow + 1)
-		numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
-		firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
-		secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives = remainingInRow(board, currentRow + 1, numColumns)
-		firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
+		#numPositivesFirstRow, numNegativesFirstRow = rowChargeCount(board, currentRow)
+		#numPositivesSecondRow, numNegativesSecondRow = rowChargeCount(board, currentRow + 1)
+		#numPositivesFirstColumn, numNegativesFirstColumn = columnChargeCount(board, numRows, currentColumn)
+		#firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives = remainingInRow(board, currentRow, numColumns)
+		#secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives = remainingInRow(board, currentRow + 1, numColumns)
+		#firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives = remainingInColumn(board, currentColumn, numRows)
 		# Try vertical magnet in (+, -) orientation
-		if placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "+", "-", specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0):
+		if(placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "+", "-", specs, rowPositives[currentRow], rowNegatives[currentRow], rowPositives[currentRow + 1], rowNegatives[currentRow + 1], columnPositives[currentColumn], columnNegatives[currentColumn], 0, 0)):
 			board[currentRow][currentColumn] = "+"
 			board[currentRow + 1][currentColumn] = "-"
-			numPositivesFirstRow += 1
-			numNegativesSecondRow += 1
-			numPositivesFirstColumn += 1
-			numNegativesFirstColumn += 1
-			firstRowRemainingVerticalPositives -= 1
-			firstRowRemainingVerticalNegatives -= 1
-			secondRowRemainingVerticalPositives -= 1
-			secondRowRemainingVerticalNegatives -= 1
-			firstColumnRemainingVerticalPositives -= 1
-			firstColumnRemainingVerticalNegatives -= 1
-			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+			#numPositivesFirstRow += 1
+			#numNegativesSecondRow += 1
+			#numPositivesFirstColumn += 1
+			#numNegativesFirstColumn += 1
+			rowPositives[currentRow] += 1
+			rowNegatives[currentRow + 1] += 1
+			columnNegatives[currentColumn] += 1
+			columnPositives[currentColumn] += 1
+			#firstRowRemainingVerticalPositives -= 1
+			#firstRowRemainingVerticalNegatives -= 1
+			#secondRowRemainingVerticalPositives -= 1
+			#secondRowRemainingVerticalNegatives -= 1
+			#firstColumnRemainingVerticalPositives -= 1
+			#firstColumnRemainingVerticalNegatives -= 1
+			rowRemainingVerticalPositives[currentRow] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[currentRow] -= 1					#(T, B)
+			rowRemainingVerticalPositives[currentRow + 1] -= 1				#(T, B)
+			rowRemainingVerticalNegatives[currentRow + 1] -= 1				#(T, B)
+			columnRemainingVerticalPositives[currentColumn] -= 1			#(T, B)
+			columnRemainingVerticalNegatives[currentColumn] -= 1			#(T, B)
+			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, rowPositives[currentRow], rowNegatives[currentRow], rowPositives[currentRow + 1], rowNegatives[currentRow + 1], columnPositives[currentColumn], columnNegatives[currentColumn], 0, 0, rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], rowRemainingHorizontalPositives[currentRow + 1], rowRemainingHorizontalNegatives[currentRow + 1], rowRemainingVerticalPositives[currentRow + 1], rowRemainingVerticalNegatives[currentRow + 1], 0, 0, 0, 0)):
 				result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 				if (result):
 					return result
@@ -239,32 +314,51 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			# Backtrack
 			board[currentRow][currentColumn] = originalFirstCharge
 			board[currentRow + 1][currentColumn] = originalSecondCharge
-			numPositivesFirstRow -= 1
-			numNegativesSecondRow -= 1
-			numPositivesFirstColumn -= 1
-			numNegativesFirstColumn -= 1
-			firstRowRemainingVerticalPositives += 1
-			firstRowRemainingVerticalNegatives += 1
-			secondRowRemainingVerticalPositives += 1
-			secondRowRemainingVerticalNegatives += 1
-			firstColumnRemainingVerticalPositives += 1
-			firstColumnRemainingVerticalNegatives += 1
-
+			#numPositivesFirstRow -= 1
+			#numNegativesSecondRow -= 1
+			#numPositivesFirstColumn -= 1
+			#numNegativesFirstColumn -= 1
+			rowPositives[currentRow] -= 1
+			rowNegatives[currentRow + 1] -= 1
+			columnNegatives[currentColumn] -= 1
+			columnPositives[currentColumn] -= 1
+			#firstRowRemainingVerticalPositives += 1
+			#firstRowRemainingVerticalNegatives += 1
+			#secondRowRemainingVerticalPositives += 1
+			#secondRowRemainingVerticalNegatives += 1
+			#firstColumnRemainingVerticalPositives += 1
+			#irstColumnRemainingVerticalNegatives += 1
+			rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
+			rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
+			rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
+			rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+			columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+			columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
 		# Try vertical magnet in (-, +) orientation
-		if placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "-", "+", specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0):
+		if(placeable(board, currentRow, currentColumn, currentRow + 1, currentColumn, "-", "+", specs, rowPositives[currentRow], rowNegatives[currentRow], rowPositives[currentRow + 1], rowNegatives[currentRow + 1], columnPositives[currentColumn], columnNegatives[currentColumn], 0, 0)):
 			board[currentRow][currentColumn] = "-"
 			board[currentRow + 1][currentColumn] = "+"
-			numNegativesFirstRow += 1
-			numPositivesSecondRow += 1
-			numPositivesFirstColumn += 1
-			numNegativesFirstColumn += 1
-			firstRowRemainingVerticalPositives -= 1
-			firstRowRemainingVerticalNegatives -= 1
-			secondRowRemainingVerticalPositives -= 1
-			secondRowRemainingVerticalNegatives -= 1
-			firstColumnRemainingVerticalPositives -= 1
-			firstColumnRemainingVerticalNegatives -= 1
-			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+			#numNegativesFirstRow += 1
+			#numPositivesSecondRow += 1
+			#numPositivesFirstColumn += 1
+			#numNegativesFirstColumn += 1
+			rowNegatives[currentRow] += 1
+			rowPositives[currentRow + 1] += 1
+			columnNegatives[currentColumn] += 1
+			columnPositives[currentColumn] += 1
+			#firstRowRemainingVerticalPositives -= 1
+			#firstRowRemainingVerticalNegatives -= 1
+			#secondRowRemainingVerticalPositives -= 1
+			#secondRowRemainingVerticalNegatives -= 1
+			#firstColumnRemainingVerticalPositives -= 1
+			#firstColumnRemainingVerticalNegatives -= 1
+			rowRemainingVerticalPositives[currentRow] -= 1					#(T, B)
+			rowRemainingVerticalNegatives[currentRow] -= 1					#(T, B)
+			rowRemainingVerticalPositives[currentRow + 1] -= 1				#(T, B)
+			rowRemainingVerticalNegatives[currentRow + 1] -= 1				#(T, B)
+			columnRemainingVerticalPositives[currentColumn] -= 1			#(T, B)
+			columnRemainingVerticalNegatives[currentColumn] -= 1			#(T, B)
+			if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, rowPositives[currentRow], rowNegatives[currentRow], rowPositives[currentRow + 1], rowNegatives[currentRow + 1], columnPositives[currentColumn], columnNegatives[currentColumn], 0, 0, rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], rowRemainingHorizontalPositives[currentRow + 1], rowRemainingHorizontalNegatives[currentRow + 1], rowRemainingVerticalPositives[currentRow + 1], rowRemainingVerticalNegatives[currentRow + 1], 0, 0, 0, 0)):
 				result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 				if (result):
 					return result
@@ -272,27 +366,43 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 			# Backtrack
 			board[currentRow][currentColumn] = originalFirstCharge
 			board[currentRow + 1][currentColumn] = originalSecondCharge
-			numNegativesFirstRow -= 1
-			numPositivesSecondRow -= 1
-			numPositivesFirstColumn -= 1
-			numNegativesFirstColumn -= 1
-			firstRowRemainingVerticalPositives += 1
-			firstRowRemainingVerticalNegatives += 1
-			secondRowRemainingVerticalPositives += 1
-			secondRowRemainingVerticalNegatives += 1
-			firstColumnRemainingVerticalPositives += 1
-			firstColumnRemainingVerticalNegatives += 1
+			#numNegativesFirstRow -= 1
+			#numPositivesSecondRow -= 1
+			#numPositivesFirstColumn -= 1
+			#numNegativesFirstColumn -= 1
+			rowNegatives[currentRow] -= 1
+			rowPositives[currentRow + 1] -= 1
+			columnNegatives[currentColumn] -= 1
+			columnPositives[currentColumn] -= 1
+			#firstRowRemainingVerticalPositives += 1
+			#firstRowRemainingVerticalNegatives += 1
+			#secondRowRemainingVerticalPositives += 1
+			#secondRowRemainingVerticalNegatives += 1
+			#firstColumnRemainingVerticalPositives += 1
+			#firstColumnRemainingVerticalNegatives += 1
+			rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
+			rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
+			rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
+			rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+			columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+			columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
 
 		# Try skipping this magnet slot
 		board[currentRow][currentColumn] = "X"
 		board[currentRow + 1][currentColumn] = "X"
-		firstRowRemainingVerticalPositives -= 1
-		firstRowRemainingVerticalNegatives -= 1
-		secondRowRemainingVerticalPositives -= 1
-		secondRowRemainingVerticalNegatives -= 1
-		firstColumnRemainingVerticalPositives -= 1
-		firstColumnRemainingVerticalNegatives -= 1
-		if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, numPositivesFirstRow, numNegativesFirstRow, numPositivesSecondRow, numNegativesSecondRow, numPositivesFirstColumn, numNegativesFirstColumn, 0, 0, firstRowRemainingHorizontalPositives, firstRowRemainingHorizontalNegatives, firstRowRemainingVerticalPositives, firstRowRemainingVerticalNegatives, firstColumnRemainingVerticalPositives, firstColumnRemainingVerticalNegatives, firstColumnRemainingHorizontalPositives, firstColumnRemainingHorizontalNegatives, secondRowRemainingHorizontalPositives, secondRowRemainingHorizontalNegatives, secondRowRemainingVerticalPositives, secondRowRemainingVerticalNegatives, 0, 0, 0, 0)):
+		#firstRowRemainingVerticalPositives -= 1
+		#firstRowRemainingVerticalNegatives -= 1
+		#secondRowRemainingVerticalPositives -= 1
+		#secondRowRemainingVerticalNegatives -= 1
+		#firstColumnRemainingVerticalPositives -= 1
+		#firstColumnRemainingVerticalNegatives -= 1
+		rowRemainingVerticalPositives[currentRow] -= 1					#(T, B)
+		rowRemainingVerticalNegatives[currentRow] -= 1					#(T, B)
+		rowRemainingVerticalPositives[currentRow + 1] -= 1				#(T, B)
+		rowRemainingVerticalNegatives[currentRow + 1] -= 1				#(T, B)
+		columnRemainingVerticalPositives[currentColumn] -= 1			#(T, B)
+		columnRemainingVerticalNegatives[currentColumn] -= 1			#(T, B)
+		if(forwardCheck(currentRow, currentColumn, currentRow + 1, currentColumn, specs, rowPositives[currentRow], rowNegatives[currentRow], rowPositives[currentRow + 1], rowNegatives[currentRow + 1], columnPositives[currentColumn], columnNegatives[currentColumn], 0, 0, rowRemainingHorizontalPositives[currentRow], rowRemainingHorizontalNegatives[currentRow], rowRemainingVerticalPositives[currentRow], rowRemainingVerticalNegatives[currentRow], columnRemainingVerticalPositives[currentColumn], columnRemainingVerticalNegatives[currentColumn], columnRemainingHorizontalPositives[currentColumn], columnRemainingHorizontalNegatives[currentColumn], rowRemainingHorizontalPositives[currentRow + 1], rowRemainingHorizontalNegatives[currentRow + 1], rowRemainingVerticalPositives[currentRow + 1], rowRemainingVerticalNegatives[currentRow + 1], 0, 0, 0, 0)):
 			result = dfs(board, specs, currentRow, currentColumn + 1, numRows, numColumns, startTime, lastPrint)
 			if (result):
 				return result
@@ -300,12 +410,18 @@ def dfs(board, specs, currentRow, currentColumn, numRows, numColumns, startTime,
 		# Backtrack
 		board[currentRow][currentColumn] = originalFirstCharge
 		board[currentRow + 1][currentColumn] = originalSecondCharge
-		firstRowRemainingVerticalPositives += 1
-		firstRowRemainingVerticalNegatives += 1
-		secondRowRemainingVerticalPositives += 1
-		secondRowRemainingVerticalNegatives += 1
-		firstColumnRemainingVerticalPositives += 1
-		firstColumnRemainingVerticalNegatives += 1
+		#firstRowRemainingVerticalPositives += 1
+		#firstRowRemainingVerticalNegatives += 1
+		#secondRowRemainingVerticalPositives += 1
+		#secondRowRemainingVerticalNegatives += 1
+		#firstColumnRemainingVerticalPositives += 1
+		#firstColumnRemainingVerticalNegatives += 1
+		rowRemainingVerticalPositives[currentRow] += 1					#(T, B)
+		rowRemainingVerticalNegatives[currentRow] += 1					#(T, B)
+		rowRemainingVerticalPositives[currentRow + 1] += 1				#(T, B)
+		rowRemainingVerticalNegatives[currentRow + 1] += 1				#(T, B)
+		columnRemainingVerticalPositives[currentColumn] += 1			#(T, B)
+		columnRemainingVerticalNegatives[currentColumn] += 1			#(T, B)
 
 		return None
 
