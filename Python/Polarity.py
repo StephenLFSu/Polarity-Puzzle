@@ -1,13 +1,11 @@
 import sys
 from time import time
-import heapq
 sys.setrecursionlimit(100000)
-def solve(board, specs):
-	board = [list(row) for row in board]
-	numRows = len(board)
-	numColumns = len(board[0])
-	board = preZeroConstraintCheck(board, specs)
+def solve(originalBoard, specs):
 	#Tile trackers
+	global board
+	global left, right, top, bottom								#Constraints
+	global numRows, numColumns
 	global rowPositives											#(+)
 	global rowNegatives 										#(-)
 	global columnPositives 										#(+)
@@ -25,6 +23,15 @@ def solve(board, specs):
 	global neighbourLocations 
 	global magnetMRVs
 	global orientations
+	
+	left = specs[0]
+	right = specs[1]
+	top = specs[2]
+	bottom = specs[3]
+	numRows = len(originalBoard)
+	numColumns = len(originalBoard[0])
+	board = [list(row) for row in originalBoard]
+	board = preZeroConstraintCheck()	
 	rowPositives = [0] * numRows								#(+)
 	rowNegatives = [0] * numRows								#(-)
 	columnPositives = [0] * numColumns							#(+)
@@ -40,7 +47,7 @@ def solve(board, specs):
 	rowNumX = [0] * numRows										#(X, X)				
 	columnNumX = [0] * numColumns								#(X. X)	
 	magnetLocations = []
-	
+
 	for currentRow in range(numRows):
 		for currentColumn in range(numColumns):
 			currentTile = board[currentRow][currentColumn]
@@ -84,7 +91,7 @@ def solve(board, specs):
 	#Dictionary key position holds location of neighbours, adjacency list 
 	neighbourLocations = {}
 	for position in magnetLocations:
-		currentMRVCount, orientations[position] = calcMRV(board, specs, position)
+		currentMRVCount, orientations[position] = calcMRV(position)
 		magnetMRVs[currentMRVCount].add(position)
 		rowOne, columnOne, rowTwo, columnTwo = position
 		neighbours = []
@@ -95,15 +102,15 @@ def solve(board, specs):
 			if(neighbourRowOne == rowOne or neighbourRowOne == rowTwo or neighbourRowTwo == rowOne or neighbourRowTwo == rowTwo or neighbourColumnOne == columnOne or neighbourColumnOne == columnTwo or neighbourColumnTwo == columnOne or neighbourColumnTwo == columnTwo):
 				neighbours.append(neighbourPosition)
 		neighbourLocations[position] = neighbours	
-	global dfsCallCount
-	dfsCallCount = 0
-	result = dfs(board, specs, numRows, numColumns)
-	print(f"DFS calls: {dfsCallCount}")
+	global backtrackCallCount
+	backtrackCallCount = 0
+	result = backtrack()
+	print(f"Backtrack calls: {backtrackCallCount}")
 	return result
 
-def dfs(board, specs, numRows, numColumns):
-	global dfsCallCount
-	dfsCallCount += 1
+def backtrack():
+	global backtrackCallCount
+	backtrackCallCount += 1
 
 	#Exhaust the magnets with least amount of options first
 	if(len(magnetMRVs[1]) > 0):
@@ -119,7 +126,7 @@ def dfs(board, specs, numRows, numColumns):
 		magnetMRVs[3].remove(position)
 		currentMRVCount = 3
 	else:
-		if(validateConfiguration(board, specs)):
+		if(validateConfiguration()):
 			return [row[:] for row in board]
 		return None
 
@@ -219,7 +226,7 @@ def dfs(board, specs, numRows, numColumns):
 		
 		neighboursUpdated = False
 		currentNeighbourMRVData = []
-		if(forwardCheck(specs, position)):
+		if(forwardCheck(position)):
 			#Update neighbouring magnet MRV(s)
 			for neighbourPosition in neighbourLocations[position]:
 				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
@@ -228,12 +235,12 @@ def dfs(board, specs, numRows, numColumns):
 					currentNeighbourMRVData.append((neighbourPosition, currentNeighbourMRVCount, orientations[neighbourPosition]))
 					magnetMRVs[currentNeighbourMRVCount].discard(neighbourPosition)
 					#New MRV
-					neighbourMRV, newOrientations = calcMRV(board, specs, neighbourPosition)
+					neighbourMRV, newOrientations = calcMRV(neighbourPosition)
 					orientations[neighbourPosition] = newOrientations
 					magnetMRVs[neighbourMRV].add(neighbourPosition)
 					
 			neighboursUpdated = True		
-			result = dfs(board, specs, numRows, numColumns)
+			result = backtrack()
 			if (result):
 				return result
 			
@@ -338,10 +345,7 @@ def dfs(board, specs, numRows, numColumns):
 	return None
 
 #charge is either + or -
-def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge, specs): 
-	left, right, top, bottom = specs
-	numRows = len(board)
-	numColumns = len(board[0])
+def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge): 
 	#Zero Constraint Check
 	if((firstCharge == "+" and left[firstRow] == 0) or (secondCharge == "+" and left[secondRow] == 0)):					#Row positive
 		return False
@@ -406,8 +410,7 @@ def placeable(board, firstRow, firstColumn, secondRow, secondColumn, firstCharge
 	#Constraint can still be fulfilled in the row
 	return True 
 
-def forwardCheck(specs, position):
-	left, right, top, bottom = specs
+def forwardCheck(position):
 	rowOne, columnOne, rowTwo, columnTwo = position
 
 	if(left[rowOne] > 0 and right[rowOne] > 0):
@@ -522,8 +525,7 @@ def forwardCheck(specs, position):
 		
 	return True
 
-def AC3(specs, numRows, numColumns):
-	left, right, top, bottom = specs
+def AC3():
 
 	#Check all rows
 	for currentRow in range(numRows):
@@ -585,7 +587,7 @@ def AC3(specs, numRows, numColumns):
 			
 	return True
 
-def rowChargeCount(board, currentRow):
+def rowChargeCount(currentRow):
 	numPositivesInRow = 0
 	numNegativesInRow = 0
 
@@ -598,7 +600,7 @@ def rowChargeCount(board, currentRow):
 
 	return numPositivesInRow, numNegativesInRow
 
-def columnChargeCount(board, numRows, currentColumn):
+def columnChargeCount(currentColumn):
 	numPositivesInColumn = 0
 	numNegativesInColumn = 0
 
@@ -611,7 +613,7 @@ def columnChargeCount(board, numRows, currentColumn):
 
 	return numPositivesInColumn, numNegativesInColumn
 
-def remainingInRow(board, currentRow, numColumns):
+def remainingInRow(currentRow):
 	rowRemainingHorizontalPositives = 0
 	rowRemainingHorizontalNegatives = 0
 	rowRemainingVerticalPositives = 0
@@ -633,7 +635,7 @@ def remainingInRow(board, currentRow, numColumns):
 
 	return rowRemainingHorizontalPositives, rowRemainingHorizontalNegatives, rowRemainingVerticalPositives, rowRemainingVerticalNegatives
 
-def remainingInColumn(board, currentColumn, numRows):
+def remainingInColumn(currentColumn):
 	columnRemainingHorizontalPositives = 0
 	columnRemainingHorizontalNegatives = 0
 	columnRemainingVerticalPositives = 0
@@ -655,18 +657,17 @@ def remainingInColumn(board, currentColumn, numRows):
 
 	return columnRemainingVerticalPositives, columnRemainingVerticalNegatives, columnRemainingHorizontalPositives, columnRemainingHorizontalNegatives
 
-def calcMRV(board, specs, position):
+def calcMRV(position):
 	rowOne, columnOne, rowTwo, columnTwo = position
 	currentOrientations = ["XX"]
-	if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "+", "-", specs)):
+	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "+", "-")):
 		currentOrientations.append("+-")
-	if(placeable(board, rowOne, columnOne, rowTwo, columnTwo, "-", "+", specs)):
+	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "-", "+")):
 		currentOrientations.append("-+")
 		
 	return (len(currentOrientations), tuple(currentOrientations))
 
-def validateRow(board, currentRow, currentColumn, specs):
-	left, right, top, bottom = specs
+def validateRow(currentRow):
 	positiveRowCount = 0
 	negativeRowCount = 0
 
@@ -683,12 +684,9 @@ def validateRow(board, currentRow, currentColumn, specs):
 		
 	return (positiveMet and negativeMet)
 
-def validateColumn(board, currentRow, currentColumn, specs):
-	left, right, top, bottom = specs
+def validateColumn(currentColumn):
 	positiveRowCount = 0
 	negativeRowCount = 0
-	numRows = len(board)
-	numColumns = len(board[0])
 
 	#Count # of times + or - in column
 	for currentRowIndex in range(numRows):
@@ -703,23 +701,19 @@ def validateColumn(board, currentRow, currentColumn, specs):
 
 	return (positiveMet and negativeMet)
 
-def horizontalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns):
+def horizontalPlacementExists(currentTile,currentRow, currentColumn):
 	if ((currentColumn + 1 < numColumns) and currentTile == "L" and board[currentRow][currentColumn+1] == "R"):
 		return True
 	else:
 		return False
 	
-def verticalPlacementExists(currentTile, board, currentRow, currentColumn, numRows, numColumns):
+def verticalPlacementExists(currentTile, currentRow, currentColumn):
 	if ((currentRow + 1 < numRows) and currentTile == "T" and board[currentRow + 1][currentColumn] == "B"):
 		return True
 	else:
 		return False
 
-def preZeroConstraintCheck(board, specs):
-	left, right, top, bottom = specs
-	numRows = len(board)
-	numColumns = len(board[0])
-
+def preZeroConstraintCheck():
 	for currentRow in range(numRows):
 		for currentColumn in range(numColumns):
 			currentTile = board[currentRow][currentColumn]
@@ -734,11 +728,7 @@ def preZeroConstraintCheck(board, specs):
 
 	return board
 
-def validateConfiguration(board, specs):
-	left, right, top, bottom = specs
-	numRows = len(board)
-	numColumns = len(board[0])
-
+def validateConfiguration():
 	# Row Constraint Check
 	for rowIndex in range(numRows):  
 		positiveCount = 0
