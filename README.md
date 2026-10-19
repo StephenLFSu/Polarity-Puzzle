@@ -59,3 +59,7 @@ Search space for the 16×16 board: 3^128 ≈ 1.2 × 10^61 possible assignments
     python Polarity.py
 
 Runs the nine included test boards and prints each solution.
+
+
+## Future Plans
+May try to add a tester to randomly generate boards and move the test cases outside of the same file
