@@ -3,7 +3,7 @@
 A constraint satisfaction solver for the Magnets puzzle, Problem 3 of the
 [UC Berkeley Fall 2012 Programming Contest](https://people.eecs.berkeley.edu/~hilfingr/programming-contest/f2012-contest.pdf).
 
-It started as a course project and turned into a personal project. Brute force can solve very small boards of size 4x4 (3^8 = 6,561 combinations) quickly, but as the search space increases the problem cannot be solved in reasonable time using this method. To improve runtime, backtracking was implemented, then optimizations such as MRV, forward checking, and incremental constraint tracking were added. Arc consistency was added at some point, but its runtime was worse than a well-tuned forward check, because it re-checked the whole board after every change instead of looking just one step ahead.
+The puzzle was first introduced to me by my professor, and I took it further by turning it into a personal project to learn algorithm optimization. Brute force can solve very small boards of size 4x4 (3^8 = 6,561 combinations) quickly, but as the search space increases the problem cannot be solved in reasonable time using this method. To improve runtime, backtracking was implemented, then optimizations such as MRV, forward checking, and incremental constraint tracking were added. Arc consistency was added at some point, but its runtime was worse than a well-tuned forward check, because it re-checked the whole board after every change instead of looking just one step ahead.
 
 The Magnets puzzle is NP-complete [1], so no known algorithm solves every
 instance in polynomial time, and the worst case remains exponential. Instead,
@@ -63,3 +63,5 @@ Runs the nine included test boards and prints each solution.
 
 ## Future Plans
 May try to add a tester to randomly generate boards and move the test cases outside of the same file
+More optimization, this algorithim probably isn't finished yet I can see a world where more data structures can be used to lessen recomputing to boost runtime further, or maybe a full code refactor to try new methods.
+Maybe tighter pruning or a mathemtical pattern emergences 
