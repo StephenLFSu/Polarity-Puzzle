@@ -96,7 +96,7 @@ def solve(originalBoard, specs):
 	#Dictionary key position holds what orientation magnet can fit
 	orientations = {}
 	#Dictionary organize magnets based off # of placeable orientations they have and hold the location of those magnets in a set (fast lookup)
-	magnetMRVs = {1: set(), 2: set(), 3: set()}
+	magnetMRVs = {0: set(), 1: set(), 2: set(), 3: set()}
 	#Dictionary key position holds location of neighbours, adjacency list 
 	neighbourLocations = {}
 	for position in magnetLocations:
@@ -122,19 +122,16 @@ def backtrack():
 	backtrackCallCount += 1
 
 	#Exhaust the magnets with least amount of options first
-	if(len(magnetMRVs[1]) > 0):
-		position = next(iter(magnetMRVs[1]))
-		magnetMRVs[1].remove(position)
-		currentMRVCount = 1
-	elif(len(magnetMRVs[2]) > 0):
-		position = next(iter(magnetMRVs[2]))
-		magnetMRVs[2].remove(position)
-		currentMRVCount = 2
-	elif(len(magnetMRVs[3]) > 0):
-		position = next(iter(magnetMRVs[3]))
-		magnetMRVs[3].remove(position)
-		currentMRVCount = 3
-	else:
+	#If theres no legal options for any position we must backtrack
+	if(len(magnetMRVs[0]) > 0):
+		return None
+	position = None
+	for count in (1, 2, 3):
+		if(position == None and len(magnetMRVs[count]) > 0):
+			position = next(iter(magnetMRVs[count]))
+			magnetMRVs[count].remove(position)
+			currentMRVCount = count
+	if(position == None):
 		if(validateConfiguration()):
 			return [row[:] for row in board]
 		return None
@@ -156,7 +153,7 @@ def backtrack():
 			for neighbourPosition in neighbourLocations[position]:
 				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
 					#Current MRV
-					currentNeighbourMRVCount = 1 if neighbourPosition in magnetMRVs[1] else 2 if neighbourPosition in magnetMRVs[2] else 3
+					currentNeighbourMRVCount = 0 if neighbourPosition in magnetMRVs[0] else 1 if neighbourPosition in magnetMRVs[1] else 2 if neighbourPosition in magnetMRVs[2] else 3
 					currentNeighbourMRVData.append((neighbourPosition, currentNeighbourMRVCount, orientations[neighbourPosition]))
 					magnetMRVs[currentNeighbourMRVCount].discard(neighbourPosition)
 					#New MRV
@@ -176,6 +173,7 @@ def backtrack():
 		#Revert neighbouring magnet MRV(s)
 		if(neighboursUpdated):
 			for neighbourPosition, currentNeighbourMRVCount, currentNeighbourOrientations in currentNeighbourMRVData:
+				magnetMRVs[0].discard(neighbourPosition)
 				magnetMRVs[1].discard(neighbourPosition)
 				magnetMRVs[2].discard(neighbourPosition)
 				magnetMRVs[3].discard(neighbourPosition)
@@ -183,7 +181,6 @@ def backtrack():
 				magnetMRVs[currentNeighbourMRVCount].add(neighbourPosition)
 					
 	#No valid placement found
-	orientations[position] = currentOrientations
 	magnetMRVs[currentMRVCount].add(position)
 	return None
 
@@ -216,67 +213,48 @@ def updateTrackers (position, orientation, count):
 			rowNegatives[row] += count
 			columnNegatives[column] += count
 
-#charge is either + or -
-def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge): 
+#charge is either +, -, X
+def placeable(rowOne, columnOne, rowTwo, columnTwo, chargeOne, chargeTwo): 
+	#Blank magnets remove capacity from their rows/columns, so check those rows/columns can still meet their limits
+	if(chargeOne == "X" and chargeTwo == "X"):
+		for row in {rowOne, rowTwo}:
+			#Row positive
+			if(left[row] != -1 and left[row] - rowPositives[row] > horizontalMagnetRemainingPositivesInRow[row] + verticalMagnetRemainingPositivesInRow[row] - 1):
+				return False
+			#Row negative
+			if(right[row] != -1 and right[row] - rowNegatives[row] > horizontalMagnetRemainingNegativesInRow[row] + verticalMagnetRemainingNegativesInRow[row] - 1):
+				return False
+		for column in {columnOne, columnTwo}:
+			#Column positive
+			if(top[column] != -1 and top[column] - columnPositives[column] > horizontalMagnetRemainingPositivesInColumn[column] + verticalMagnetRemainingPositivesInColumn[column] - 1):
+				return False
+			#Column negative
+			if(bottom[column] != -1 and bottom[column] - columnNegatives[column] > horizontalMagnetRemainingNegativesInColumn[column] + verticalMagnetRemainingNegativesInColumn[column] - 1):
+				return False	
+		return True
+	
 	#Zero Constraint Check
-	if((firstCharge == "+" and left[firstRow] == 0) or (secondCharge == "+" and left[secondRow] == 0)):					#Row positive
+	if((chargeOne == "+" and left[rowOne] == 0) or (chargeTwo == "+" and left[rowTwo] == 0)):				#Row positive
 		return False
-	if((firstCharge == "-" and right[firstRow] == 0) or (secondCharge == "-" and right[secondRow] == 0)):				#Row negative
+	if((chargeOne == "-" and right[rowOne] == 0) or (chargeTwo == "-" and right[rowTwo] == 0)):				#Row negative
 		return False
-	if((firstCharge == "+" and top[firstColumn] == 0) or (secondCharge == "+" and top[secondColumn] == 0)):				#Column positive
+	if((chargeOne == "+" and top[columnOne] == 0) or (chargeTwo == "+" and top[columnTwo] == 0)):			#Column positive
 		return False
-	if((firstCharge == "-" and bottom[firstColumn] == 0) or (secondCharge == "-" and bottom[secondColumn] == 0)):		#Column negative
+	if((chargeOne == "-" and bottom[columnOne] == 0) or (chargeTwo == "-" and bottom[columnTwo] == 0)):		#Column negative
 		return False
 
-	#Horizontal placement
-	if(firstRow == secondRow):
-		#Checks if charges around first charge is the same, rows same their columns differ
-		if (((firstRow - 1 >= 0) and board[firstRow - 1][firstColumn] == firstCharge) or 					#Checks if the tile above has same charge
-			((firstRow + 1 < numRows) and board[firstRow + 1][firstColumn] == firstCharge) or 				#Checks if the tile below has same charge
-			((firstColumn - 1 >= 0) and board[firstRow][firstColumn - 1 ] == firstCharge)):					#Checks if the tile left has same charge
+	for row, column, charge in ((rowOne, columnOne, chargeOne), (rowTwo, columnTwo, chargeTwo)):
+		#Looping through neighbours using offset
+		for neighbourRow, neighbourColumn in ((row - 1, column), (row + 1, column), (row, column + 1), (row, column - 1)):
+			if((0 <= neighbourRow < numRows) and (0 <= neighbourColumn < numColumns) and board[neighbourRow][neighbourColumn] == charge):
+				return False
+		if((charge == "+" or charge == "+") and left[row] != -1 and rowPositives[row] >= left[row]):						#Positive charge count over row constraint limit
 			return False
-		#Checks if charges around second charge is the same, rows same their columns differ
-		if (((firstRow - 1 >= 0) and board[firstRow - 1][secondColumn] == secondCharge) or 					#Checks if the tile above has same charge
-			((firstRow + 1 < numRows) and board[firstRow + 1][secondColumn] == secondCharge) or				#Checks if the tile below has same charge
-			((secondColumn + 1 < numColumns) and board[firstRow][secondColumn + 1 ] == secondCharge)):		#Checks if the tile right has same charge
-			return False
-		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same rows
-		if((firstCharge == "+" or secondCharge == "+") and left[firstRow] != -1 and rowPositives[firstRow] >= left[firstRow]):					#Positive charge count over row constraint limit
-			return False
-		if((firstCharge == "-" or secondCharge == "-") and right[firstRow] != -1 and rowNegatives[firstRow] >= right[firstRow]):					#Negative charge count over row constraint limit
+		if((charge == "-" or charge == "-") and right[row] != -1 and rowNegatives[row] >= right[row]):						#Negative charge count over row constraint limit
 			return False	
-		if(firstCharge == "+" and top[firstColumn] != -1 and columnPositives[firstColumn] >= top[firstColumn]):										#Positive charge count over first column constraint limit
+		if((charge == "+" or charge == "+") and top[column] != -1 and columnPositives[column] >= top[column]):				#Positive charge count over column constraint limit
 			return False	
-		if(firstCharge == "-" and bottom[firstColumn] != -1 and columnNegatives[firstColumn] >= bottom[firstColumn]):								#Negative charge count over first column constraint limit
-			return False
-		if(secondCharge == "+" and top[secondColumn] != -1 and columnPositives[secondColumn] >= top[secondColumn]):									#Positive charge count over second column constraint limit
-			return False	
-		if(secondCharge == "-" and bottom[secondColumn] != -1 and columnNegatives[secondColumn] >= bottom[secondColumn]):							#Negative charge count over second column constraint limit
-			return False
-	#Vertical placement
-	else:
-		#Checks if charges around first charge is the same, columns same their rows differ 
-		if (((firstColumn - 1 >= 0 ) and board[firstRow][firstColumn - 1 ] == firstCharge) or				#Checks if the tile left has same charge
-			((firstColumn + 1 < numColumns) and board[firstRow][firstColumn + 1] == firstCharge) or			#Checks if the tile right has same charge
-			((firstRow - 1 >= 0) and board[firstRow - 1][firstColumn] == firstCharge)):						#Checks if the tile above has same charge
-			return False
-		#Checks if charges around second charge is the same, columns same their rows differ 
-		if (((firstColumn - 1 >= 0 ) and board[secondRow][firstColumn - 1 ] == secondCharge) or				#Checks if the tile left has same charge
-			((firstColumn + 1 < numColumns) and board[secondRow][firstColumn + 1] == secondCharge) or		#Checks if the tile right has same charge
-			((secondRow + 1 < numRows) and board[secondRow + 1][firstColumn] == secondCharge)):				#Checks if the tile below has same charge
-			return False
-		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same columns
-		if(firstCharge == "+" and left[firstRow] != -1 and rowPositives[firstRow] >= left[firstRow]):												#Positive charge count over first row constraint limit
-			return False
-		if(firstCharge == "-" and right[firstRow] != -1 and rowNegatives[firstRow] >= right[firstRow]):											#Negative charge count over first row constraint limit
-			return False	
-		if(secondCharge == "+" and left[secondRow] != -1 and rowPositives[secondRow] >= left[secondRow]):											#Positive charge count over second row constraint limit
-			return False
-		if(secondCharge == "-" and right[secondRow] != -1 and rowNegatives[secondRow] >= right[secondRow]):										#Negative charge count over second row constraint limit
-			return False	
-		if((firstCharge == "+" or secondCharge == "+") and top[firstColumn] != -1 and columnPositives[firstColumn] >= top[firstColumn]):				#Positive charge count over column constraint limit
-			return False	
-		if((firstCharge == "-" or secondCharge == "-") and bottom[firstColumn] != -1 and columnNegatives[firstColumn] >= bottom[firstColumn]):		#Negative charge count over column constraint limit
+		if((charge == "-" or charge == "-") and bottom[column] != -1 and columnNegatives[column] >= bottom[column]):		#Negative charge count over column constraint limit
 			return False
 
 	#Constraint can still be fulfilled in the row
@@ -285,305 +263,29 @@ def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secon
 def forwardCheck(position):
 	rowOne, columnOne, rowTwo, columnTwo = position
 
-	if(left[rowOne] > 0 and right[rowOne] > 0):
-		if(rowPositives[rowOne] > left[rowOne] or rowNegatives[rowOne] > right[rowOne] or (rowPositives[rowOne] + horizontalMagnetRemainingPositivesInRow[rowOne] + verticalMagnetRemainingPositivesInRow[rowOne]) < left[rowOne] or (rowNegatives[rowOne] + horizontalMagnetRemainingNegativesInRow[rowOne] + verticalMagnetRemainingNegativesInRow[rowOne]) < right[rowOne]):
+	for row in {rowOne, rowTwo}:
+		if((left[row] != -1) and ((rowPositives[row] > left[row]) or ((rowPositives[row] + horizontalMagnetRemainingPositivesInRow[row] + verticalMagnetRemainingPositivesInRow[row]) < left[row]))):
 			return False
-	elif(left[rowOne] > 0 and right[rowOne] == -1):
-		if(rowPositives[rowOne] > left[rowOne] or (rowPositives[rowOne] + horizontalMagnetRemainingPositivesInRow[rowOne] + verticalMagnetRemainingPositivesInRow[rowOne]) < left[rowOne]):
+		if((right[row] != -1) and ((rowNegatives[row] > right[row]) or ((rowNegatives[row] + horizontalMagnetRemainingNegativesInRow[row] + verticalMagnetRemainingNegativesInRow[row]) < right[row]))):
 			return False
-	elif(left[rowOne] == -1 and right[rowOne] > 0):
-		if(rowNegatives[rowOne] > right[rowOne] or (rowNegatives[rowOne] + horizontalMagnetRemainingNegativesInRow[rowOne] + verticalMagnetRemainingNegativesInRow[rowOne]) < right[rowOne]):
+
+	for column in {columnOne, columnTwo}:
+		if((top[column] != -1) and ((columnPositives[column] > top[column]) or ((columnPositives[column] + verticalMagnetRemainingPositivesInColumn[column] + horizontalMagnetRemainingPositivesInColumn[column]) < top[column]))):
 			return False
-	elif(left[rowOne] > 0 and right[rowOne] == 0):
-		#Horizontals can't be placed, only verticals contribute positives
-		if(rowPositives[rowOne] > left[rowOne] or (rowPositives[rowOne] + verticalMagnetRemainingPositivesInRow[rowOne]) < left[rowOne]):
-			return False
-	elif(left[rowOne] == 0 and right[rowOne] > 0):
-		#Horizontals can't be placed, only verticals contribute negatives
-		if(rowNegatives[rowOne] > right[rowOne] or (rowNegatives[rowOne] + verticalMagnetRemainingNegativesInRow[rowOne]) < right[rowOne]):
-			return False
-	elif(left[rowOne] == 0 and right[rowOne] == -1):
-		if(rowPositives[rowOne] > 0):
-			return False
-	elif(left[rowOne] == -1 and right[rowOne] == 0):
-		if(rowNegatives[rowOne] > 0):
-			return False
-	elif(left[rowOne] == 0 and right[rowOne] == 0):
-		if(rowPositives[rowOne] > 0 or rowNegatives[rowOne] > 0):
+		if((bottom[column] != -1) and ((columnNegatives[column] > bottom[column]) or ((columnNegatives[column] + verticalMagnetRemainingNegativesInColumn[column] + horizontalMagnetRemainingNegativesInColumn[column]) < bottom[column]))):
 			return False
 	
-	if(rowOne != rowTwo):
-		if(left[rowTwo] > 0 and right[rowTwo] > 0):
-			if(rowPositives[rowTwo] > left[rowTwo] or rowNegatives[rowTwo] > right[rowTwo] or (rowPositives[rowTwo] + horizontalMagnetRemainingPositivesInRow[rowTwo] + verticalMagnetRemainingPositivesInRow[rowTwo]) < left[rowTwo] or (rowNegatives[rowTwo] + horizontalMagnetRemainingNegativesInRow[rowTwo] + verticalMagnetRemainingNegativesInRow[rowTwo]) < right[rowTwo]):
-				return False
-		elif(left[rowTwo] > 0 and right[rowTwo] == -1):
-			if(rowPositives[rowTwo] > left[rowTwo] or (rowPositives[rowTwo] + horizontalMagnetRemainingPositivesInRow[rowTwo] + verticalMagnetRemainingPositivesInRow[rowTwo]) < left[rowTwo]):
-				return False
-		elif(left[rowTwo] == -1 and right[rowTwo] > 0):
-			if(rowNegatives[rowTwo] > right[rowTwo] or (rowNegatives[rowTwo] + horizontalMagnetRemainingNegativesInRow[rowTwo] + verticalMagnetRemainingNegativesInRow[rowTwo]) < right[rowTwo]):
-				return False
-		elif(left[rowTwo] > 0 and right[rowTwo] == 0):
-			#Horizontals can't be placed, only verticals contribute positives
-			if(rowPositives[rowTwo] > left[rowTwo] or (rowPositives[rowTwo] + verticalMagnetRemainingPositivesInRow[rowTwo]) < left[rowTwo]):
-				return False
-		elif(left[rowTwo] == 0 and right[rowTwo] > 0):
-			#Horizontals can't be placed, only verticals contribute negatives
-			if(rowNegatives[rowTwo] > right[rowTwo] or (rowNegatives[rowTwo] + verticalMagnetRemainingNegativesInRow[rowTwo]) < right[rowTwo]):
-				return False
-		elif(left[rowTwo] == 0 and right[rowTwo] == -1):
-			if(rowPositives[rowTwo] > 0):
-				return False
-		elif(left[rowTwo] == -1 and right[rowTwo] == 0):
-			if(rowNegatives[rowTwo] > 0):
-				return False
-		elif(left[rowTwo] == 0 and right[rowTwo] == 0):
-			if(rowPositives[rowTwo] > 0 or rowNegatives[rowTwo] > 0):
-				return False
-		
-	if(top[columnOne] > 0 and bottom[columnOne] > 0):
-		if(columnPositives[columnOne] > top[columnOne] or columnNegatives[columnOne] > bottom[columnOne] or (columnPositives[columnOne] + verticalMagnetRemainingPositivesInColumn[columnOne] + horizontalMagnetRemainingPositivesInColumn[columnOne]) < top[columnOne] or (columnNegatives[columnOne] + verticalMagnetRemainingNegativesInColumn[columnOne] + horizontalMagnetRemainingNegativesInColumn[columnOne]) < bottom[columnOne]):
-			return False
-	elif(top[columnOne] > 0 and bottom[columnOne] == -1):
-		if(columnPositives[columnOne] > top[columnOne] or (columnPositives[columnOne] + verticalMagnetRemainingPositivesInColumn[columnOne] + horizontalMagnetRemainingPositivesInColumn[columnOne]) < top[columnOne]):
-			return False
-	elif(top[columnOne] == -1 and bottom[columnOne] > 0):
-		if(columnNegatives[columnOne] > bottom[columnOne] or (columnNegatives[columnOne] + verticalMagnetRemainingNegativesInColumn[columnOne] + horizontalMagnetRemainingNegativesInColumn[columnOne]) < bottom[columnOne]):
-			return False
-	elif(top[columnOne] > 0 and bottom[columnOne] == 0):
-		#Verticals can't be placed, only horizontals contribute positives
-		if(columnPositives[columnOne] > top[columnOne] or (columnPositives[columnOne] + horizontalMagnetRemainingPositivesInColumn[columnOne]) < top[columnOne]):
-			return False
-	elif(top[columnOne] == 0 and bottom[columnOne] > 0):
-		#Verticals can't be placed, only horizontals contribute negatives
-		if(columnNegatives[columnOne] > bottom[columnOne] or (columnNegatives[columnOne] + horizontalMagnetRemainingNegativesInColumn[columnOne]) < bottom[columnOne]):
-			return False
-	elif(top[columnOne] == 0 and bottom[columnOne] == -1):
-		if(columnPositives[columnOne] > 0):
-			return False
-	elif(top[columnOne] == -1 and bottom[columnOne] == 0):
-		if(columnNegatives[columnOne] > 0):
-			return False
-	elif(top[columnOne] == 0 and bottom[columnOne] == 0):
-		if(columnPositives[columnOne] > 0 or columnNegatives[columnOne] > 0):
-			return False
-		
-	if(columnOne != columnTwo):	
-		if(top[columnTwo] > 0 and bottom[columnTwo] > 0):
-			if(columnPositives[columnTwo] > top[columnTwo] or columnNegatives[columnTwo] > bottom[columnTwo] or (columnPositives[columnTwo] + verticalMagnetRemainingPositivesInColumn[columnTwo] + horizontalMagnetRemainingPositivesInColumn[columnTwo]) < top[columnTwo] or (columnNegatives[columnTwo] + verticalMagnetRemainingNegativesInColumn[columnTwo] + horizontalMagnetRemainingNegativesInColumn[columnTwo]) < bottom[columnTwo]):
-				return False
-		elif(top[columnTwo] > 0 and bottom[columnTwo] == -1):
-			if(columnPositives[columnTwo] > top[columnTwo] or (columnPositives[columnTwo] + verticalMagnetRemainingPositivesInColumn[columnTwo] + horizontalMagnetRemainingPositivesInColumn[columnTwo]) < top[columnTwo]):
-				return False
-		elif(top[columnTwo] == -1 and bottom[columnTwo] > 0):
-			if(columnNegatives[columnTwo] > bottom[columnTwo] or (columnNegatives[columnTwo] + verticalMagnetRemainingNegativesInColumn[columnTwo] + horizontalMagnetRemainingNegativesInColumn[columnTwo]) < bottom[columnTwo]):
-				return False
-		elif(top[columnTwo] > 0 and bottom[columnTwo] == 0):
-			#Verticals can't be placed, only horizontals contribute positives
-			if(columnPositives[columnTwo] > top[columnTwo] or (columnPositives[columnTwo] + horizontalMagnetRemainingPositivesInColumn[columnTwo]) < top[columnTwo]):
-				return False
-		elif(top[columnTwo] == 0 and bottom[columnTwo] > 0):
-			#Verticals can't be placed, only horizontals contribute negatives
-			if(columnNegatives[columnTwo] > bottom[columnTwo] or (columnNegatives[columnTwo] + horizontalMagnetRemainingNegativesInColumn[columnTwo]) < bottom[columnTwo]):
-				return False
-		elif(top[columnTwo] == 0 and bottom[columnTwo] == -1):
-			if(columnPositives[columnTwo] > 0):
-				return False
-		elif(top[columnTwo] == -1 and bottom[columnTwo] == 0):
-			if(columnNegatives[columnTwo] > 0):
-				return False
-		elif(top[columnTwo] == 0 and bottom[columnTwo] == 0):
-			if(columnPositives[columnTwo] > 0 or columnNegatives[columnTwo] > 0):
-				return False
-		
 	return True
-
-def AC3():
-
-	#Check all rows
-	for currentRow in range(numRows):
-		if(left[currentRow] > 0 and right[currentRow] > 0):
-			if(rowPositives[currentRow] > left[currentRow] or rowNegatives[currentRow] > right[currentRow] or (rowPositives[currentRow] + horizontalMagnetRemainingPositivesInRow[currentRow] + verticalMagnetRemainingPositivesInRow[currentRow]) < left[currentRow] or (rowNegatives[currentRow] + horizontalMagnetRemainingNegativesInRow[currentRow] + verticalMagnetRemainingNegativesInRow[currentRow]) < right[currentRow]):
-				return False
-		elif(left[currentRow] > 0 and right[currentRow] == -1):
-			if(rowPositives[currentRow] > left[currentRow] or (rowPositives[currentRow] + horizontalMagnetRemainingPositivesInRow[currentRow] + verticalMagnetRemainingPositivesInRow[currentRow]) < left[currentRow]):
-				return False
-		elif(left[currentRow] == -1 and right[currentRow] > 0):
-			if(rowNegatives[currentRow] > right[currentRow] or (rowNegatives[currentRow] + horizontalMagnetRemainingNegativesInRow[currentRow] + verticalMagnetRemainingNegativesInRow[currentRow]) < right[currentRow]):
-				return False
-		elif(left[currentRow] > 0 and right[currentRow] == 0):
-			#Horizontals can't be placed, only verticals contribute positives
-			if(rowPositives[currentRow] > left[currentRow] or (rowPositives[currentRow] + verticalMagnetRemainingPositivesInRow[currentRow]) < left[currentRow]):
-				return False
-		elif(left[currentRow] == 0 and right[currentRow] > 0):
-			#Horizontals can't be placed, only verticals contribute negatives
-			if(rowNegatives[currentRow] > right[currentRow] or (rowNegatives[currentRow] + verticalMagnetRemainingNegativesInRow[currentRow]) < right[currentRow]):
-				return False
-		elif(left[currentRow] == 0 and right[currentRow] == -1):
-			if(rowPositives[currentRow] > 0):
-				return False
-		elif(left[currentRow] == -1 and right[currentRow] == 0):
-			if(rowNegatives[currentRow] > 0):
-				return False
-		elif(left[currentRow] == 0 and right[currentRow] == 0):
-			if(rowPositives[currentRow] > 0 or rowNegatives[currentRow] > 0):
-				return False
-
-	#Check all columns
-	for currentColumn in range(numColumns):
-		if(top[currentColumn] > 0 and bottom[currentColumn] > 0):
-			if(columnPositives[currentColumn] > top[currentColumn] or columnNegatives[currentColumn] > bottom[currentColumn] or (columnPositives[currentColumn] + verticalMagnetRemainingPositivesInColumn[currentColumn] + horizontalMagnetRemainingPositivesInColumn[currentColumn]) < top[currentColumn] or (columnNegatives[currentColumn] + verticalMagnetRemainingNegativesInColumn[currentColumn] + horizontalMagnetRemainingNegativesInColumn[currentColumn]) < bottom[currentColumn]):
-				return False
-		elif(top[currentColumn] > 0 and bottom[currentColumn] == -1):
-			if(columnPositives[currentColumn] > top[currentColumn] or (columnPositives[currentColumn] + verticalMagnetRemainingPositivesInColumn[currentColumn] + horizontalMagnetRemainingPositivesInColumn[currentColumn]) < top[currentColumn]):
-				return False
-		elif(top[currentColumn] == -1 and bottom[currentColumn] > 0):
-			if(columnNegatives[currentColumn] > bottom[currentColumn] or (columnNegatives[currentColumn] + verticalMagnetRemainingNegativesInColumn[currentColumn] + horizontalMagnetRemainingNegativesInColumn[currentColumn]) < bottom[currentColumn]):
-				return False
-		elif(top[currentColumn] > 0 and bottom[currentColumn] == 0):
-			#Verticals can't be placed, only horizontals contribute positives
-			if(columnPositives[currentColumn] > top[currentColumn] or (columnPositives[currentColumn] + horizontalMagnetRemainingPositivesInColumn[currentColumn]) < top[currentColumn]):
-				return False
-		elif(top[currentColumn] == 0 and bottom[currentColumn] > 0):
-			#Verticals can't be placed, only horizontals contribute negatives
-			if(columnNegatives[currentColumn] > bottom[currentColumn] or (columnNegatives[currentColumn] + horizontalMagnetRemainingNegativesInColumn[currentColumn]) < bottom[currentColumn]):
-				return False
-		elif(top[currentColumn] == 0 and bottom[currentColumn] == -1):
-			if(columnPositives[currentColumn] > 0):
-				return False
-		elif(top[currentColumn] == -1 and bottom[currentColumn] == 0):
-			if(columnNegatives[currentColumn] > 0):
-				return False
-		elif(top[currentColumn] == 0 and bottom[currentColumn] == 0):
-			if(columnPositives[currentColumn] > 0 or columnNegatives[currentColumn] > 0):
-				return False
-			
-	return True
-
-def rowChargeCount(currentRow):
-	numPositivesInRow = 0
-	numNegativesInRow = 0
-
-	#Count # of times + or - in row
-	for currentTile in board[currentRow]:
-		if (currentTile == "+"):
-			numPositivesInRow += 1
-		elif (currentTile == "-"):
-			numNegativesInRow += 1  
-
-	return numPositivesInRow, numNegativesInRow
-
-def columnChargeCount(currentColumn):
-	numPositivesInColumn = 0
-	numNegativesInColumn = 0
-
-	#Count # of times + or - in column
-	for currentRowIndex in range(numRows):
-		if (board[currentRowIndex][currentColumn] ==  "+"):
-			numPositivesInColumn += 1
-		elif (board[currentRowIndex][currentColumn] ==  "-"):
-			numNegativesInColumn += 1	
-
-	return numPositivesInColumn, numNegativesInColumn
-
-def remainingInRow(currentRow):
-	horizontalMagnetRemainingPositivesInRow = 0
-	horizontalMagnetRemainingNegativesInRow = 0
-	verticalMagnetRemainingPositivesInRow = 0
-	verticalMagnetRemainingNegativesInRow = 0
-	currentColumn = 0
-	while(currentColumn < numColumns):
-		currentTile = board[currentRow][currentColumn]
-		if(currentTile == "L" and board[currentRow][currentColumn + 1] == "R"):
-			horizontalMagnetRemainingPositivesInRow += 1
-			horizontalMagnetRemainingNegativesInRow += 1
-			currentColumn += 2
-		elif(currentTile == "T" or currentTile == "B"):
-			verticalMagnetRemainingPositivesInRow += 1
-			verticalMagnetRemainingNegativesInRow += 1
-			currentColumn += 1
-		#+, -, X tiles
-		else:
-			currentColumn += 1
-
-	return horizontalMagnetRemainingPositivesInRow, horizontalMagnetRemainingNegativesInRow, verticalMagnetRemainingPositivesInRow, verticalMagnetRemainingNegativesInRow
-
-def remainingInColumn(currentColumn):
-	horizontalMagnetRemainingPositivesInColumn = 0
-	horizontalMagnetRemainingNegativesInColumn = 0
-	verticalMagnetRemainingPositivesInColumn = 0
-	verticalMagnetRemainingNegativesInColumn = 0
-	currentRow = 0
-	while(currentRow < numRows):
-		currentTile = board[currentRow][currentColumn]
-		if(currentTile == "T" and board[currentRow + 1][currentColumn] == "B"):
-			verticalMagnetRemainingPositivesInColumn += 1
-			verticalMagnetRemainingNegativesInColumn += 1
-			currentRow += 2
-		elif(currentTile == "L" or currentTile == "R"):
-			horizontalMagnetRemainingPositivesInColumn += 1
-			horizontalMagnetRemainingNegativesInColumn += 1
-			currentRow += 1
-		#+, -, X tiles
-		else:
-			currentRow += 1
-
-	return verticalMagnetRemainingPositivesInColumn, verticalMagnetRemainingNegativesInColumn, horizontalMagnetRemainingPositivesInColumn, horizontalMagnetRemainingNegativesInColumn
 
 def calcMRV(position):
 	rowOne, columnOne, rowTwo, columnTwo = position
-	currentOrientations = ["XX"]
-	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "+", "-")):
-		currentOrientations.append("+-")
-	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "-", "+")):
-		currentOrientations.append("-+")
-		
+	currentOrientations = []
+	for orientation in ("XX", "+-", "-+"):
+		firstCharge, secondCharge = orientationToCharge[orientation]
+		if(placeable(rowOne, columnOne, rowTwo, columnTwo, firstCharge, secondCharge)):
+			currentOrientations.append(orientation)
+
 	return (len(currentOrientations), tuple(currentOrientations))
-
-def validateRow(currentRow):
-	positiveRowCount = 0
-	negativeRowCount = 0
-
-	#Count # of times + or - in row
-	for currentTile in board[currentRow]:
-		if (currentTile == "+"):
-			positiveRowCount += 1
-		if (currentTile == "-"):
-			negativeRowCount += 1
-
-	#No constraint limits = -1 and constraints are met when the counts are the same, constraints can either exist in a realm of numbers either -1 or >= 0
-	positiveMet = (positiveRowCount == left[currentRow] or left[currentRow] == -1)
-	negativeMet = (negativeRowCount == right[currentRow] or right[currentRow] == -1)
-		
-	return (positiveMet and negativeMet)
-
-def validateColumn(currentColumn):
-	positiveRowCount = 0
-	negativeRowCount = 0
-
-	#Count # of times + or - in column
-	for currentRowIndex in range(numRows):
-		if (board[currentRowIndex][currentColumn] ==  "+"):
-			positiveRowCount += 1
-		if (board[currentRowIndex][currentColumn] ==  "-"):
-			negativeRowCount += 1	
-
-	#No constraint limits = -1 and constraints are met when the counts are the same, constraints can either exist in a realm of numbers either -1 or >= 0
-	positiveMet = (positiveRowCount == top[currentColumn] or top[currentColumn] == -1)
-	negativeMet = (negativeRowCount == bottom[currentColumn] or bottom[currentColumn] == -1)
-
-	return (positiveMet and negativeMet)
-
-def horizontalPlacementExists(currentTile,currentRow, currentColumn):
-	if ((currentColumn + 1 < numColumns) and currentTile == "L" and board[currentRow][currentColumn+1] == "R"):
-		return True
-	else:
-		return False
-	
-def verticalPlacementExists(currentTile, currentRow, currentColumn):
-	if ((currentRow + 1 < numRows) and currentTile == "T" and board[currentRow + 1][currentColumn] == "B"):
-		return True
-	else:
-		return False
 
 def preZeroConstraintCheck():
 	for currentRow in range(numRows):
@@ -593,10 +295,6 @@ def preZeroConstraintCheck():
 				board[currentRow][currentColumn] = "X"
 			if ((currentTile == "T" or currentTile == "B") and (top[currentColumn] == 0 or bottom[currentColumn] == 0)):
 				board[currentRow][currentColumn] = "X"
-			#if ((currentTile == "L" or currentTile == "R") and (top[currentColumn] == 0 or bottom[currentColumn] == 0)):
-				#board[currentRow][currentColumn] = "X"
-			#if ((currentTile == "T" or currentTile == "B") and (left[currentRow] == 0 or right[currentRow] == 0)):
-				#board[currentRow][currentColumn] = "X"
 
 	return board
 
