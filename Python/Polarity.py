@@ -96,7 +96,7 @@ def solve(originalBoard, specs):
 	#Dictionary key position holds what orientation magnet can fit
 	orientations = {}
 	#Dictionary organize magnets based off # of placeable orientations they have and hold the location of those magnets in a set (fast lookup)
-	magnetMRVs = {1: set(), 2: set(), 3: set()}
+	magnetMRVs = {0: set(), 1: set(), 2: set(), 3: set()}
 	#Dictionary key position holds location of neighbours, adjacency list 
 	neighbourLocations = {}
 	for position in magnetLocations:
@@ -122,7 +122,9 @@ def backtrack():
 	backtrackCallCount += 1
 
 	#Exhaust the magnets with least amount of options first
-	if(len(magnetMRVs[1]) > 0):
+	if(len(magnetMRVs[0]) > 0):
+		return None
+	elif(len(magnetMRVs[1]) > 0):
 		position = next(iter(magnetMRVs[1]))
 		magnetMRVs[1].remove(position)
 		currentMRVCount = 1
@@ -156,7 +158,7 @@ def backtrack():
 			for neighbourPosition in neighbourLocations[position]:
 				if(board[neighbourPosition[0]][neighbourPosition[1]] == "L" or board[neighbourPosition[0]][neighbourPosition[1]] == "T"):
 					#Current MRV
-					currentNeighbourMRVCount = 1 if neighbourPosition in magnetMRVs[1] else 2 if neighbourPosition in magnetMRVs[2] else 3
+					currentNeighbourMRVCount = 0 if neighbourPosition in magnetMRVs[0] else 1 if neighbourPosition in magnetMRVs[1] else 2 if neighbourPosition in magnetMRVs[2] else 3
 					currentNeighbourMRVData.append((neighbourPosition, currentNeighbourMRVCount, orientations[neighbourPosition]))
 					magnetMRVs[currentNeighbourMRVCount].discard(neighbourPosition)
 					#New MRV
@@ -176,6 +178,7 @@ def backtrack():
 		#Revert neighbouring magnet MRV(s)
 		if(neighboursUpdated):
 			for neighbourPosition, currentNeighbourMRVCount, currentNeighbourOrientations in currentNeighbourMRVData:
+				magnetMRVs[0].discard(neighbourPosition)
 				magnetMRVs[1].discard(neighbourPosition)
 				magnetMRVs[2].discard(neighbourPosition)
 				magnetMRVs[3].discard(neighbourPosition)
@@ -218,6 +221,50 @@ def updateTrackers (position, orientation, count):
 
 #charge is either + or -
 def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secondCharge): 
+	#Blank magnets remove capacity from their rows/columns, so check those rows/columns can still meet their limits
+	if(firstCharge == "X" and secondCharge == "X"):
+		#Horizontal placement, one row, two columns
+		if(firstRow == secondRow):
+			#Row positive
+			if(left[firstRow] != -1 and left[firstRow] - rowPositives[firstRow] > horizontalMagnetRemainingPositivesInRow[firstRow] + verticalMagnetRemainingPositivesInRow[firstRow] - 1):
+				return False
+			#Row negative
+			if(right[firstRow] != -1 and right[firstRow] - rowNegatives[firstRow] > horizontalMagnetRemainingNegativesInRow[firstRow] + verticalMagnetRemainingNegativesInRow[firstRow] - 1):
+				return False
+			#First column positive
+			if(top[firstColumn] != -1 and top[firstColumn] - columnPositives[firstColumn] > horizontalMagnetRemainingPositivesInColumn[firstColumn] + verticalMagnetRemainingPositivesInColumn[firstColumn] - 1):
+				return False
+			#First column negative
+			if(bottom[firstColumn] != -1 and bottom[firstColumn] - columnNegatives[firstColumn] > horizontalMagnetRemainingNegativesInColumn[firstColumn] + verticalMagnetRemainingNegativesInColumn[firstColumn] - 1):
+				return False
+			#Second column positive
+			if(top[secondColumn] != -1 and top[secondColumn] - columnPositives[secondColumn] > horizontalMagnetRemainingPositivesInColumn[secondColumn] + verticalMagnetRemainingPositivesInColumn[secondColumn] - 1):
+				return False
+			#Second column negative
+			if(bottom[secondColumn] != -1 and bottom[secondColumn] - columnNegatives[secondColumn] > horizontalMagnetRemainingNegativesInColumn[secondColumn] + verticalMagnetRemainingNegativesInColumn[secondColumn] - 1):
+				return False
+		#Vertical placement, two rows, one column
+		else:
+			#First row positive
+			if(left[firstRow] != -1 and left[firstRow] - rowPositives[firstRow] > horizontalMagnetRemainingPositivesInRow[firstRow] + verticalMagnetRemainingPositivesInRow[firstRow] - 1):
+				return False
+			#First row negative
+			if(right[firstRow] != -1 and right[firstRow] - rowNegatives[firstRow] > horizontalMagnetRemainingNegativesInRow[firstRow] + verticalMagnetRemainingNegativesInRow[firstRow] - 1):
+				return False
+			#Second row positive
+			if(left[secondRow] != -1 and left[secondRow] - rowPositives[secondRow] > horizontalMagnetRemainingPositivesInRow[secondRow] + verticalMagnetRemainingPositivesInRow[secondRow] - 1):
+				return False
+			#Second row negative
+			if(right[secondRow] != -1 and right[secondRow] - rowNegatives[secondRow] > horizontalMagnetRemainingNegativesInRow[secondRow] + verticalMagnetRemainingNegativesInRow[secondRow] - 1):
+				return False
+			#Column positive
+			if(top[firstColumn] != -1 and top[firstColumn] - columnPositives[firstColumn] > horizontalMagnetRemainingPositivesInColumn[firstColumn] + verticalMagnetRemainingPositivesInColumn[firstColumn] - 1):
+				return False
+			#Column negative
+			if(bottom[firstColumn] != -1 and bottom[firstColumn] - columnNegatives[firstColumn] > horizontalMagnetRemainingNegativesInColumn[firstColumn] + verticalMagnetRemainingNegativesInColumn[firstColumn] - 1):
+				return False
+		return True
+	
 	#Zero Constraint Check
 	if((firstCharge == "+" and left[firstRow] == 0) or (secondCharge == "+" and left[secondRow] == 0)):					#Row positive
 		return False
@@ -241,7 +288,7 @@ def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secon
 			((secondColumn + 1 < numColumns) and board[firstRow][secondColumn + 1 ] == secondCharge)):		#Checks if the tile right has same charge
 			return False
 		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same rows
-		if((firstCharge == "+" or secondCharge == "+") and left[firstRow] != -1 and rowPositives[firstRow] >= left[firstRow]):					#Positive charge count over row constraint limit
+		if((firstCharge == "+" or secondCharge == "+") and left[firstRow] != -1 and rowPositives[firstRow] >= left[firstRow]):						#Positive charge count over row constraint limit
 			return False
 		if((firstCharge == "-" or secondCharge == "-") and right[firstRow] != -1 and rowNegatives[firstRow] >= right[firstRow]):					#Negative charge count over row constraint limit
 			return False	
@@ -268,13 +315,13 @@ def placeable(firstRow, firstColumn, secondRow, secondColumn, firstCharge, secon
 		#Overlimit constraint, when a constraint exits and were over the limit don't place, first and second charge share same columns
 		if(firstCharge == "+" and left[firstRow] != -1 and rowPositives[firstRow] >= left[firstRow]):												#Positive charge count over first row constraint limit
 			return False
-		if(firstCharge == "-" and right[firstRow] != -1 and rowNegatives[firstRow] >= right[firstRow]):											#Negative charge count over first row constraint limit
+		if(firstCharge == "-" and right[firstRow] != -1 and rowNegatives[firstRow] >= right[firstRow]):												#Negative charge count over first row constraint limit
 			return False	
 		if(secondCharge == "+" and left[secondRow] != -1 and rowPositives[secondRow] >= left[secondRow]):											#Positive charge count over second row constraint limit
 			return False
-		if(secondCharge == "-" and right[secondRow] != -1 and rowNegatives[secondRow] >= right[secondRow]):										#Negative charge count over second row constraint limit
+		if(secondCharge == "-" and right[secondRow] != -1 and rowNegatives[secondRow] >= right[secondRow]):											#Negative charge count over second row constraint limit
 			return False	
-		if((firstCharge == "+" or secondCharge == "+") and top[firstColumn] != -1 and columnPositives[firstColumn] >= top[firstColumn]):				#Positive charge count over column constraint limit
+		if((firstCharge == "+" or secondCharge == "+") and top[firstColumn] != -1 and columnPositives[firstColumn] >= top[firstColumn]):			#Positive charge count over column constraint limit
 			return False	
 		if((firstCharge == "-" or secondCharge == "-") and bottom[firstColumn] != -1 and columnNegatives[firstColumn] >= bottom[firstColumn]):		#Negative charge count over column constraint limit
 			return False
@@ -531,12 +578,12 @@ def remainingInColumn(currentColumn):
 
 def calcMRV(position):
 	rowOne, columnOne, rowTwo, columnTwo = position
-	currentOrientations = ["XX"]
-	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "+", "-")):
-		currentOrientations.append("+-")
-	if(placeable(rowOne, columnOne, rowTwo, columnTwo, "-", "+")):
-		currentOrientations.append("-+")
-		
+	currentOrientations = []
+	for orientation in ("XX", "+-", "-+"):
+		firstCharge, secondCharge = orientationToCharge[orientation]
+		if(placeable(rowOne, columnOne, rowTwo, columnTwo, firstCharge, secondCharge)):
+			currentOrientations.append(orientation)
+
 	return (len(currentOrientations), tuple(currentOrientations))
 
 def validateRow(currentRow):
